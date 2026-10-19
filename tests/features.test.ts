@@ -109,3 +109,10 @@ test('alert conditions', () => {
   assert.equal(validAlert({ id: 'a', inst: 'x', cond: 'above', value: 1, created: 1 }), true);
   assert.equal(validAlert({ id: 'a', inst: 'x', cond: 'bad', value: 1, created: 1 }), false);
 });
+
+test('regular-only plan filter hides Direct schemes', () => {
+  const f = parseNavAll(NAV);
+  const q = (o = {}) => searchFunds(f, '2025-10-17', 'alpha', o).map((x) => x.code);
+  assert.deepEqual(q({ plan: 'regular' }), ['100002']);
+  assert.deepEqual(q({ plan: 'any' }), ['100001', '100002']);
+});

@@ -106,7 +106,7 @@ export const gu: Record<string, string> = {
   // Mutual funds
   'Search any scheme and see its latest NAV from AMFI, with NAV history and trailing returns.': 'કોઈપણ યોજના શોધો અને AMFI નો તાજો NAV, NAV ઇતિહાસ તથા રિટર્ન જુઓ.',
   'Type a fund or AMC name, e.g. “flexi cap”': 'ફંડ કે AMC નું નામ લખો, જેમ કે “flexi cap”', 'Search mutual funds': 'મ્યુચ્યુઅલ ફંડ શોધો',
-  'Direct': 'ડાયરેક્ટ', 'Regular': 'રેગ્યુલર', 'Growth': 'ગ્રોથ', 'IDCW': 'IDCW', 'Quick searches': 'ઝડપી શોધ',
+  'Regular plans': 'ફક્ત રેગ્યુલર પ્લાન', 'Growth': 'ગ્રોથ', 'IDCW': 'IDCW', 'Quick searches': 'ઝડપી શોધ',
   'Mutual fund data is unavailable right now.': 'હાલમાં મ્યુચ્યુઅલ ફંડ ડેટા ઉપલબ્ધ નથી.', '{n} schemes': '{n} યોજનાઓ', 'NAV date': 'NAV તારીખ',
   'No scheme matched your search.': 'તમારી શોધ સાથે કોઈ યોજના મળતી નથી.',
   'NAV is published by AMFI after market hours and is not a live price. Showing active schemes only. This is information, not a recommendation to buy or sell.':

@@ -11,15 +11,15 @@ import { CtaBand } from './cta';
 import { Empty, Panel, Skel } from './ui';
 import { PageHead } from './sections';
 
-const QUICK = ['Index Fund Direct', 'Flexi Cap', 'ELSS', 'Liquid', 'Small Cap', 'Hybrid'];
+const QUICK = ['Flexi Cap', 'ELSS', 'Liquid', 'Small Cap', 'Hybrid', 'Large Cap'];
 const dateText = (iso: string) => new Date(iso + 'T00:00:00Z').toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 export function MutualFundsPage() {
   const t = useT();
   const [q, setQ] = useState('');
-  const [plan, setPlan] = useState('');
   const [option, setOption] = useState('');
-  const [res, setRes] = useState<{ results: Fund[]; latest: string; total: number } | null>(null);
+  const [res, setRes] = useState<{ results: Fund[]; latest: string; total: number | null; source?: string; fallback?: boolean } | null>(null);
+  const [detail, setDetail] = useState('');
   const [state, setState] = useState<'idle' | 'loading' | 'error'>('idle');
 
   useEffect(() => {
@@ -33,13 +33,13 @@ export function MutualFundsPage() {
     setState('loading');
     const ctl = new AbortController();
     const timer = setTimeout(() => {
-      fetch(`/api/mf/search?q=${encodeURIComponent(text)}&plan=${plan}&option=${option}`, { signal: ctl.signal })
-        .then((r) => (r.ok ? r.json() : Promise.reject()))
-        .then((j) => { setRes(j); setState('idle'); })
+      fetch(`/api/mf/search?q=${encodeURIComponent(text)}&option=${option}`, { signal: ctl.signal })
+        .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) { setDetail(j.detail ?? ''); throw new Error('x'); } return j; })
+        .then((j) => { setRes(j); setDetail(''); setState('idle'); })
         .catch((e) => { if (e?.name !== 'AbortError') setState('error'); });
     }, 300);
     return () => { clearTimeout(timer); ctl.abort(); };
-  }, [q, plan, option]);
+  }, [q, option]);
 
   const chip = (cur: string, set: (v: string) => void, v: string, label: string) => (
     <button className={cur === v ? 'on' : ''} onClick={() => set(cur === v ? '' : v)} aria-pressed={cur === v}>{t(label)}</button>
@@ -54,7 +54,7 @@ export function MutualFundsPage() {
           <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder={t('Type a fund or AMC name, e.g. “flexi cap”')} aria-label={t('Search mutual funds')} />
         </div>
         <div className="chips">
-          {chip(plan, setPlan, 'direct', 'Direct')}{chip(plan, setPlan, 'regular', 'Regular')}
+          <span className="badge closed">{t('Regular plans')}</span>
           <span className="chip-sep" />
           {chip(option, setOption, 'growth', 'Growth')}{chip(option, setOption, 'idcw', 'IDCW')}
         </div>
@@ -64,9 +64,9 @@ export function MutualFundsPage() {
       </Panel>
 
       {state === 'loading' && !res ? <Panel title=""><div className="stack pad"><Skel h={22} /><Skel h={22} /><Skel h={22} /></div></Panel> : state === 'error' ? (
-        <Panel title=""><Empty>{t('Mutual fund data is unavailable right now.')}</Empty></Panel>
+        <Panel title=""><Empty>{t('Mutual fund data is unavailable right now.')}{detail && <span className="muted small block">{detail}</span>}</Empty></Panel>
       ) : res ? (
-        <Panel title={t('{n} schemes', { n: res.results.length })} sub={`${t('NAV date')}: ${dateText(res.latest)} · ${t('Source')}: AMFI`}>
+        <Panel title={t('{n} schemes', { n: res.results.length })} sub={`${t('NAV date')}: ${res.latest ? dateText(res.latest) : '—'} · ${t('Source')}: ${res.source ?? 'AMFI'}`}>
           {res.results.length === 0 ? <Empty>{t('No scheme matched your search.')}</Empty> : (
             <ul className="rows mf-list">
               {res.results.map((f) => (

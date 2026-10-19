@@ -40,7 +40,16 @@ export async function getFunds(): Promise<{ funds: Fund[]; latest: string; at: n
     let last: unknown;
     for (const url of URLS) {
       try {
-        const res = await fetch(url, { headers: { 'user-agent': 'Mozilla/5.0 KanethicMarketHub/1.0' }, signal: AbortSignal.timeout(20_000), cache: 'no-store' });
+        const res = await fetch(url, {
+          headers: {
+            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+            accept: 'text/plain,text/html;q=0.9,*/*;q=0.8',
+            'accept-language': 'en-IN,en;q=0.9',
+            referer: 'https://www.amfiindia.com/',
+          },
+          signal: AbortSignal.timeout(30_000),
+          cache: 'no-store',
+        });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const funds = parseNavAll(await res.text());
         if (funds.length < 100) throw new Error('AMFI file looks incomplete');
@@ -56,7 +65,7 @@ export async function getFunds(): Promise<{ funds: Fund[]; latest: string; at: n
   return { ...value, at };
 }
 
-export type SearchOpts = { plan?: 'direct' | 'regular'; option?: 'growth' | 'idcw'; limit?: number; includeInactive?: boolean };
+export type SearchOpts = { plan?: 'direct' | 'regular' | 'any'; option?: 'growth' | 'idcw'; limit?: number; includeInactive?: boolean };
 
 export function searchFunds(funds: Fund[], latest: string, query: string, opts: SearchOpts = {}): Fund[] {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);

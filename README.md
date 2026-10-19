@@ -17,7 +17,7 @@ Offline UI test (fake data, sirf dev): `npm run dev:mock`.
 ## Features (v1.1)
 
 - **English / ગુજરાતી** toggle (header ma EN | ગુ). Navu text: `t('English')` vapro ane `lib/i18n.ts` ma Gujarati umero; translation na hoy to English dekhay.
-- **Mutual funds**: AMFI `NAVAll.txt` (official) mathi search + latest NAV; fund page par NAV chart ane trailing returns
+- **Mutual funds** (default sirf **Regular** plans; `MF_PLAN=direct|any` thi badlay; AMFI na male to `mfapi.in` fallback; error nu kaaran page par ane `/sources` ma dekhay): AMFI `NAVAll.txt` (official) mathi search + latest NAV; fund page par NAV chart ane trailing returns
   (NAV history `mfapi.in` thi; 1M/6M absolute, 1Y+ CAGR — pote ganela, dividend/IDCW ane tax shamil nathi).
 - **Calculators**: SIP (step-up sathe), Lumpsum, Goal (jaruri monthly SIP). Illustration only.
 - **Price alerts**: browser ma save thay (localStorage) ane site khuli hoy tyare j tapase (dar 30 sec). Browser notification + in-page toast.

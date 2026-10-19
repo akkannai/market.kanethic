@@ -44,8 +44,13 @@ globalThis.fetch = async (input, init) => {
     const symbol = decodeURIComponent(url.pathname.split('/').pop());
     return json(chart(symbol, url.searchParams.get('range'), url.searchParams.get('interval')));
   }
-  if (url.hostname.includes('amfiindia')) return new Response(amfi(), { status: 200 });
-  if (url.hostname.includes('mfapi.in')) return json(mfapi(url.pathname.split('/').pop()));
+  if (url.hostname.includes('amfiindia')) return process.env.MOCK_AMFI_FAIL ? new Response('blocked', { status: 403 }) : new Response(amfi(), { status: 200 });
+  if (url.hostname.includes('mfapi.in')) {
+    const last = url.pathname.split('/').pop();
+    if (last === 'search') return json([{ schemeCode: 100001, schemeName: 'Mock Flexi Cap Fund - Direct Plan - Growth' }, { schemeCode: 100002, schemeName: 'Mock Flexi Cap Fund - Regular Plan - Growth' }, { schemeCode: 100003, schemeName: 'Mock Flexi Cap Fund - Regular Plan - IDCW' }]);
+    if (last === 'latest') { const m = mfapi('x'); return json({ meta: m.meta, data: [m.data[0]], status: 'SUCCESS' }); }
+    return json(mfapi(last));
+  }
   if (url.hostname.includes('faireconomy')) {
     if (url.pathname.includes('nextweek')) return new Response('{}', { status: 404 });
     return json(['USD', 'EUR', 'GBP', 'JPY'].flatMap((c, i) => ['High', 'Medium', 'Low'].map((impact, k) => ({ title: `${c} sample release ${k + 1}`, country: c, date: new Date(Date.now() + (i * 5 + k * 2) * 3600e3).toISOString(), impact, forecast: '1.2%', previous: '1.0%' }))));
