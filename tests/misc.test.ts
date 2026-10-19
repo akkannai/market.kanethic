@@ -79,3 +79,15 @@ test('format helpers', () => {
   assert.equal(signed(-1.5), '−1.50');
   assert.equal(pctText(0.456), '+0.46%');
 });
+
+import { parseFrankfurter, pairFromSeries } from '../lib/ecb.ts';
+test('ECB fallback: cross rates, AED peg, prev day', () => {
+  const day = (inr: number, eur: number) => ({ INR: inr, EUR: eur, GBP: 0.75, CAD: 1.4, AUD: 1.5, SGD: 1.3, JPY: 150 });
+  const s = parseFrankfurter({ rates: { '2025-10-16': day(88, 0.8), '2025-10-17': day(90, 0.8), '2025-10-15': { INR: null } } });
+  assert.deepEqual(s.dates, ['2025-10-16', '2025-10-17']);
+  const usdinr = pairFromSeries(s, 'USD', 'INR')!;
+  assert.equal(usdinr.price, 90); assert.equal(usdinr.prev, 88);
+  assert.ok(Math.abs(pairFromSeries(s, 'EUR', 'INR')!.price - 112.5) < 1e-9);
+  assert.ok(Math.abs(pairFromSeries(s, 'AED', 'INR')!.price - 90 / 3.6725) < 1e-9);
+  assert.throws(() => parseFrankfurter({ rates: {} }));
+});

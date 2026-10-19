@@ -34,6 +34,7 @@ Top gainers/losers ni list `lib/nifty50.ts` ma che.
 | Data | Source | Note |
 |---|---|---|
 | Indices, FX, futures, yield | Yahoo Finance public chart endpoints | Near-live; kyarek 15–20 min delay. Unofficial endpoint |
+| Currencies (fallback) | ECB via Frankfurter (api.frankfurter.dev) | Yahoo na aape tyare; daily reference rate, "Last close" tarike dekhay; AED = USD peg 3.6725 |
 | Indian gold/silver | COMEX × USD/INR × (1 + duty%) | Indicative; GST/making vagar. `INDIA_BULLION_PREMIUM_PCT` |
 | Mutual fund NAV | AMFI NAVAll.txt (+ mfapi.in history) | Daily NAV, bazar band thaya pachhi; live nathi |
 | News | ET, Moneycontrol, Mint, Business Standard, RBI, Fed RSS | Sirf headline + link |

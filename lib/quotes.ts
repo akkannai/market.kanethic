@@ -2,6 +2,7 @@ import { catalog, type Instrument } from './instruments.ts';
 import { pool } from './cache.ts';
 import { getSymbolQuote, type RawQuote } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
+import { getUsdSeries, pairFromSeries } from './ecb.ts';
 
 export type Quote = {
   id: string;
@@ -61,6 +62,25 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
       quotes[inst.id] = toQuote(inst, raw, 'Yahoo Finance');
     } else failed.push(inst.id);
   });
+
+  // Currency fallback: Yahoo na aape to ECB (Frankfurter) reference rates
+  const missingFx = catalog.filter((i) => i.group === 'fx' && !quotes[i.id]);
+  if (missingFx.length) {
+    try {
+      const series = await getUsdSeries();
+      for (const inst of missingFx) {
+        const [base, quote] = inst.name.split('/');
+        const raw = pairFromSeries(series, base, quote);
+        if (!raw) continue;
+        raws.set(inst.id, raw);
+        quotes[inst.id] = toQuote(inst, raw, 'ECB reference rate (daily)');
+        const k = failed.indexOf(inst.id);
+        if (k >= 0) failed.splice(k, 1);
+      }
+    } catch {
+      /* ECB pan na male to failed ma rahe */
+    }
+  }
 
   // Indian bullion: international price x USD/INR (x duty premium). Behe input hoy to j.
   const premium = Number(process.env.INDIA_BULLION_PREMIUM_PCT ?? 6);
