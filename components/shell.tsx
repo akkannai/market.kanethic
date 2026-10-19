@@ -137,7 +137,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <header className="topbar">
         <div className="topbar-in">
           <Link href="/" className="brand" aria-label="Kanethic Market Hub home">
-            <span className="brand-mark">K</span>
+            <span className="brand-mark"><img src="/logo-icon.png" alt="" width={40} height={34} /></span>
             <span className="brand-text"><b>Kanethic</b><small>Market Hub</small></span>
           </Link>
           <div className="actions"><SearchBox /><LiveClock /><LangToggle /><ThemeToggle /><TalkToUs compact /></div>
@@ -154,6 +154,7 @@ export function Shell({ children }: { children: ReactNode }) {
       <main className="page">{children}</main>
       <AlertToasts />
       <footer className="foot">
+        <img src="/logo.png" alt="Kanethic — Invest With Discipline" className="foot-logo" width={120} height={120} />
         <div>
           <b>Kanethic Private Limited</b> · Invest With Discipline. · AMFI-registered Mutual Fund Distributor | ARN-254247 · <Link href="/sources" className="more">{t('Data & sources')}</Link>
         </div>

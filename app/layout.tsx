@@ -6,7 +6,7 @@ import { Shell } from '@/components/shell';
 export const metadata: Metadata = {
   title: { default: 'Kanethic Market Hub', template: '%s | Kanethic Market Hub' },
   description: 'Near-live Indian and global markets, currencies, commodities, news and economic calendar. Kanethic Private Limited — Invest With Discipline.',
-  icons: { icon: '/favicon.svg' },
+  icons: { icon: '/icon.png', apple: '/icon.png' },
 };
 
 export const viewport: Viewport = { themeColor: '#0a1830', width: 'device-width', initialScale: 1 };
