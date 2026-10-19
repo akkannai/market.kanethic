@@ -3,6 +3,7 @@ import { pool } from './cache.ts';
 import { getSymbolQuote, type RawQuote } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
 import { getUsdSeries, pairFromSeries } from './ecb.ts';
+import { STOOQ, getStooqQuote } from './stooq.ts';
 
 export type Quote = {
   id: string;
@@ -62,6 +63,20 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
       quotes[inst.id] = toQuote(inst, raw, 'Yahoo Finance');
     } else failed.push(inst.id);
   });
+
+  // Global indices fallback: Yahoo na aape to Stooq (daily close)
+  const missingIdx = catalog.filter((i) => STOOQ[i.id] && !quotes[i.id]);
+  if (missingIdx.length) {
+    const rs = await pool(missingIdx, 4, (i) => getStooqQuote(STOOQ[i.id]));
+    missingIdx.forEach((inst, k) => {
+      const raw = rs[k];
+      if (!raw) return;
+      raws.set(inst.id, raw);
+      quotes[inst.id] = toQuote(inst, raw, 'Stooq daily close (fallback)');
+      const f = failed.indexOf(inst.id);
+      if (f >= 0) failed.splice(f, 1);
+    });
+  }
 
   // Currency fallback: Yahoo na aape to ECB (Frankfurter) reference rates
   const missingFx = catalog.filter((i) => i.group === 'fx' && !quotes[i.id]);

@@ -44,6 +44,11 @@ globalThis.fetch = async (input, init) => {
     const rates = {}; for (let d = 9; d >= 0; d--) { const dt = new Date(Date.now() - d * 86400e3); if (dt.getUTCDay() % 6 === 0) continue; const f = 1 + 0.003 * Math.sin(d); rates[dt.toISOString().slice(0, 10)] = { INR: 87.5 * f, EUR: 0.86 * f, GBP: 0.75, CAD: 1.38, AUD: 1.52, SGD: 1.3, JPY: 150 }; }
     return json({ base: 'USD', rates });
   }
+  if (url.hostname.includes('stooq')) {
+    const rows = ['Date,Open,High,Low,Close,Volume']; for (let d = 8; d >= 0; d--) { const dt = new Date(Date.now() - d * 86400e3); if (dt.getUTCDay() % 6 === 0) continue; const c = 6000 + d * 7; rows.push(`${dt.toISOString().slice(0, 10)},${c},${c + 20},${c - 20},${c + 3},1`); }
+    return new Response(rows.join('\n'), { status: 200 });
+  }
+  if (url.hostname.includes('yahoo.com') && process.env.MOCK_YAHOO_ALL_FAIL) return new Response('Too Many Requests', { status: 429 });
   if (url.hostname.includes('yahoo.com') && process.env.MOCK_YAHOO_FX_FAIL && decodeURIComponent(url.pathname).endsWith('=X')) return new Response('Too Many Requests', { status: 429 });
   if (url.hostname.includes('yahoo.com')) {
     const symbol = decodeURIComponent(url.pathname.split('/').pop());

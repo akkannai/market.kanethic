@@ -91,3 +91,11 @@ test('ECB fallback: cross rates, AED peg, prev day', () => {
   assert.ok(Math.abs(pairFromSeries(s, 'AED', 'INR')!.price - 90 / 3.6725) < 1e-9);
   assert.throws(() => parseFrankfurter({ rates: {} }));
 });
+
+import { parseStooqCsv } from '../lib/stooq.ts';
+test('Stooq csv parse', () => {
+  const q = parseStooqCsv('Date,Open,High,Low,Close,Volume\n2025-10-15,1,2,0.5,100,5\n2025-10-16,100,111,99,110,6\n2025-10-17,110,125,109,121,7\n');
+  assert.equal(q.price, 121); assert.equal(q.prev, 110); assert.equal(q.high, 125); assert.deepEqual(q.spark, [100, 110, 121]);
+  assert.throws(() => parseStooqCsv('No data'), /No data/);
+  assert.throws(() => parseStooqCsv('Date,Open,High,Low,Close,Volume\n2025-10-15,1,2,0.5,100,5\n'), /Not enough/);
+});
