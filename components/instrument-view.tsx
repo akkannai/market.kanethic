@@ -1,11 +1,12 @@
 'use client';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Bell } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { byId, catalog } from '@/lib/instruments';
 import { istTime, nf, pctText, signed } from '@/lib/format';
 import { useQuotes } from './providers';
+import { useT } from './lang';
 import { Delta, Empty, InstrumentTable, Panel, Skel, StarButton, StateBadge, dir } from './ui';
 
 const RANGES = ['1d', '5d', '1m', '6m', '1y', '5y'] as const;
@@ -30,6 +31,7 @@ const tickFmt = (range: string, t: number) =>
   new Date(t).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', ...(range === '1d' ? { hour: '2-digit', minute: '2-digit', hour12: false } : range === '5d' ? { day: '2-digit', month: 'short' } : range === '5y' ? { month: 'short', year: '2-digit' } : { day: '2-digit', month: 'short' }) });
 
 export function InstrumentView({ id }: { id: string }) {
+  const t = useT();
   const inst = byId.get(id)!;
   const { quotes, loading } = useQuotes();
   const q = quotes[id];
@@ -41,38 +43,38 @@ export function InstrumentView({ id }: { id: string }) {
   const color = tone === 'down' ? 'var(--down)' : 'var(--up)';
   const stats: [string, string][] = q
     ? [
-        ['Open', q.open !== null ? nf(q.open, inst.dp) : '—'],
-        ['Day high', q.high !== null ? nf(q.high, inst.dp) : '—'],
-        ['Day low', q.low !== null ? nf(q.low, inst.dp) : '—'],
-        ['Previous close', q.prev !== null ? nf(q.prev, inst.dp) : '—'],
-        ['52-week high', q.w52h !== null ? nf(q.w52h, inst.dp) : '—'],
-        ['52-week low', q.w52l !== null ? nf(q.w52l, inst.dp) : '—'],
-        ['As of', `${istTime(q.time, true)} IST`],
-        ['Source', q.source],
+        [t('Open'), q.open !== null ? nf(q.open, inst.dp) : '—'],
+        [t('Day high'), q.high !== null ? nf(q.high, inst.dp) : '—'],
+        [t('Day low'), q.low !== null ? nf(q.low, inst.dp) : '—'],
+        [t('Previous close'), q.prev !== null ? nf(q.prev, inst.dp) : '—'],
+        [t('52-week high'), q.w52h !== null ? nf(q.w52h, inst.dp) : '—'],
+        [t('52-week low'), q.w52l !== null ? nf(q.w52l, inst.dp) : '—'],
+        [t('As of'), `${istTime(q.time, true)} IST`],
+        [t('Source'), q.source],
       ]
     : [];
   const peers = catalog.filter((i) => i.group === inst.group && i.id !== id).slice(0, 5);
 
   return (
     <>
-      <Link href="/" className="back"><ArrowLeft size={15} aria-hidden /> Overview</Link>
+      <Link href="/" className="back"><ArrowLeft size={15} aria-hidden /> {t('Overview')}</Link>
       <div className="inst-head">
         <div>
-          <h1>{inst.name}</h1>
-          <p className="muted">{inst.kind} · {inst.region} · {inst.unit}</p>
+          <h1>{t(inst.name)}</h1>
+          <p className="muted">{t(inst.kind)} · {t(inst.region)} · {t(inst.unit)}</p>
         </div>
-        <StarButton id={id} />
+        <div className="inst-actions"><Link href={`/watchlist?alert=${id}`} className="btn"><Bell size={14} aria-hidden /> {t('Set alert')}</Link><StarButton id={id} /></div>
       </div>
       <Panel title="" className="inst-panel">
         <div className="inst-price">
-          {q ? <><strong className="num big">{nf(q.price, inst.dp)}</strong><Delta inst={inst} q={q} size="lg" /><StateBadge q={q} /></> : loading ? <Skel h={44} w={240} /> : <span className="muted">Price unavailable right now.</span>}
+          {q ? <><strong className="num big">{nf(q.price, inst.dp)}</strong><Delta inst={inst} q={q} size="lg" /><StateBadge q={q} /></> : loading ? <Skel h={44} w={240} /> : <span className="muted">{t('Price unavailable right now.')}</span>}
         </div>
         <div className="range-bar">
           <div className="seg">{RANGES.map((r) => <button key={r} className={range === r ? 'on' : ''} onClick={() => setRange(r)}>{r.toUpperCase()}</button>)}</div>
           {rangeChange !== null && range !== '1d' && <span className={`${dir(rangeChange)} small num`}>{range.toUpperCase()}: {pctText(rangeChange)}</span>}
         </div>
         <div className="chart">
-          {err ? <Empty>Chart data is unavailable right now.</Empty> : !points ? <Skel h={320} /> : (
+          {err ? <Empty>{t('Chart data is unavailable right now.')}</Empty> : !points ? <Skel h={320} /> : (
             <ResponsiveContainer width="100%" height={320}>
               <AreaChart data={points.map(([t, v]) => ({ t, v }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.28} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
@@ -91,8 +93,8 @@ export function InstrumentView({ id }: { id: string }) {
         </div>
         {stats.length > 0 && <dl className="stats">{stats.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}</dl>}
       </Panel>
-      {inst.note && <p className="note">ℹ {inst.note}</p>}
-      {inst.yield && q?.change != null && <p className="note">ℹ Yield change is in basis points (1 bp = 0.01%): {signed(q.change, 1)} bps today.</p>}
+      {inst.note && <p className="note"><span>ℹ {t(inst.note)}</span></p>}
+      {inst.yield && q?.change != null && <p className="note"><span>ℹ {t('Yield change is in basis points (1 bp = 0.01%)')}: {signed(q.change, 1)} bps</span></p>}
       {peers.length > 0 && <Panel title="Related"><InstrumentTable items={peers} /></Panel>}
     </>
   );

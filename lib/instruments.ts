@@ -102,16 +102,18 @@ export const catalog: Instrument[] = [
 export const byId = new Map(catalog.map((i) => [i.id, i]));
 export const ofGroup = (g: Group) => catalog.filter((i) => i.group === g);
 
-export const sections: { slug: string; label: string }[] = [
+export const sections: { slug: string; label: string; nav?: boolean }[] = [
   { slug: 'overview', label: 'Overview' },
   { slug: 'india', label: 'India' },
   { slug: 'global', label: 'Global' },
   { slug: 'currencies', label: 'Currencies' },
   { slug: 'commodities', label: 'Commodities' },
+  { slug: 'mutual-funds', label: 'Mutual Funds' },
+  { slug: 'calculators', label: 'Calculators' },
   { slug: 'news', label: 'News' },
   { slug: 'calendar', label: 'Calendar' },
-  { slug: 'watchlist', label: 'Watchlist' },
-  { slug: 'sources', label: 'Sources' },
+  { slug: 'watchlist', label: 'Watchlist & Alerts' },
+  { slug: 'sources', label: 'Sources', nav: false },
 ];
 
 /** Converter ma vaparati currencies: code -> INR rate no instrument id */

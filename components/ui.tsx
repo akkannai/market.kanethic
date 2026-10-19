@@ -5,6 +5,7 @@ import type { ReactNode } from 'react';
 import type { Instrument } from '@/lib/instruments';
 import type { Quote } from '@/lib/quotes';
 import { nf, pctText, signed } from '@/lib/format';
+import { useT } from './lang';
 import { useQuotes, useWatchlist } from './providers';
 
 export const dir = (n: number | null | undefined) => (n == null || n === 0 ? 'flat' : n > 0 ? 'up' : 'down');
@@ -40,31 +41,35 @@ export function Spark({ data, tone, w = 96, h = 32, fill = false }: { data: numb
 }
 
 export function StateBadge({ q }: { q?: Quote }) {
+  const t = useT();
   if (!q) return null;
   return q.state === 'live' ? (
-    <span className="badge live"><i className="pulse" />Near-live</span>
+    <span className="badge live"><i className="pulse" />{t('Near-live')}</span>
   ) : (
-    <span className="badge closed">Last close</span>
+    <span className="badge closed">{t('Last close')}</span>
   );
 }
 
 export function StarButton({ id }: { id: string }) {
+  const t = useT();
   const { has, toggle } = useWatchlist();
   const on = has(id);
+  const label = on ? t('Remove from watchlist') : t('Add to watchlist');
   return (
-    <button className={`icon-btn star ${on ? 'on' : ''}`} onClick={() => toggle(id)} aria-pressed={on} aria-label={on ? 'Remove from watchlist' : 'Add to watchlist'} title={on ? 'Remove from watchlist' : 'Add to watchlist'}>
+    <button className={`icon-btn star ${on ? 'on' : ''}`} onClick={() => toggle(id)} aria-pressed={on} aria-label={label} title={label}>
       <Star size={16} fill={on ? 'currentColor' : 'none'} />
     </button>
   );
 }
 
 export function Panel({ title, sub, action, children, className = '' }: { title: string; sub?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+  const t = useT();
   return (
     <section className={`panel ${className}`}>
       <header className="panel-head">
         <div>
-          <h2>{title}</h2>
-          {sub && <p className="muted small">{sub}</p>}
+          <h2>{title && t(title)}</h2>
+          {sub && <p className="muted small">{t(sub)}</p>}
         </div>
         {action}
       </header>
@@ -80,13 +85,14 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 export function InstrumentTable({ items, showStar = true }: { items: Instrument[]; showStar?: boolean }) {
+  const t = useT();
   const { quotes, loading } = useQuotes();
   return (
     <div className="table-wrap">
       <table className="tbl">
         <thead>
           <tr>
-            <th>Name</th><th className="r">Last</th><th className="r">Change</th><th className="hide-sm">Trend</th>{showStar && <th aria-label="Watchlist" />}
+            <th>{t('Name')}</th><th className="r">{t('Last')}</th><th className="r">{t('Change')}</th><th className="hide-sm">{t('Trend')}</th>{showStar && <th aria-label="Watchlist" />}
           </tr>
         </thead>
         <tbody>
@@ -96,11 +102,11 @@ export function InstrumentTable({ items, showStar = true }: { items: Instrument[
             return (
               <tr key={inst.id}>
                 <td>
-                  <Link href={`/instrument/${inst.id}`} className="name">{inst.name}</Link>
-                  <span className="sub">{inst.unit}{q && q.state === 'closed' ? ' · last close' : ''}</span>
+                  <Link href={`/instrument/${inst.id}`} className="name">{t(inst.name)}</Link>
+                  <span className="sub">{t(inst.unit)}{q && q.state === 'closed' ? ` · ${t('last close')}` : ''}</span>
                 </td>
                 <td className="r"><strong><Price inst={inst} q={q} /></strong></td>
-                <td className="r">{q ? <Delta inst={inst} q={q} /> : loading ? <Skel w={70} /> : <span className="muted" title="Data unavailable">n/a</span>}</td>
+                <td className="r">{q ? <Delta inst={inst} q={q} /> : loading ? <Skel w={70} /> : <span className="muted" title={t('Data unavailable')}>n/a</span>}</td>
                 <td className="hide-sm">{q && <Spark data={q.spark} tone={d} />}</td>
                 {showStar && <td className="star-cell"><StarButton id={inst.id} /></td>}
               </tr>
