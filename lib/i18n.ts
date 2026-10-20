@@ -81,7 +81,7 @@ export const gu: Record<string, string> = {
   'Open': 'ખુલ્યો', 'Day high': 'દિવસનો ઊંચો', 'Day low': 'દિવસનો નીચો', 'Previous close': 'અગાઉનું બંધ', '52-week high': '52 સપ્તાહનો ઊંચો',
   '52-week low': '52 સપ્તાહનો નીચો', 'As of': 'સમય', 'Source': 'સ્ત્રોત', 'Related': 'સંબંધિત', 'Price unavailable right now.': 'હાલમાં ભાવ ઉપલબ્ધ નથી.',
   'Chart data is unavailable right now.': 'હાલમાં ચાર્ટ ડેટા ઉપલબ્ધ નથી.', 'Yield change is in basis points (1 bp = 0.01%)': 'યીલ્ડ ફેરફાર બેસિસ પોઈન્ટમાં (1 bp = 0.01%)',
-  'International gold x USD/INR + import duty premium. GST ane making charges shamil nathi. Local jeweller / MCX bhav thi thodo alag hoi shake.': 'આંતરરાષ્ટ્રીય સોનું × USD/INR + આયાત ડ્યૂટી. GST અને મેકિંગ ચાર્જ સામેલ નથી. સ્થાનિક જ્વેલર / MCX ભાવથી થોડો અલગ હોઈ શકે.',
+  'International spot gold x USD/INR / 31.1035 x 10 g + import duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local dealer premium shamil nathi, etle jeweller / MCX / IBJA bhav thi alag hoi shake. Matching mate MCX ke IBJA bhav sathe sarkhavo.': 'આંતરરાષ્ટ્રીય સ્પોટ સોનું × USD/INR ÷ 31.1035 × 10 ગ્રામ + આયાત ડ્યૂટી. GST (3%), મેકિંગ ચાર્જ અને સ્થાનિક પ્રીમિયમ સામેલ નથી, તેથી જ્વેલર / MCX / IBJA ભાવથી અલગ હોઈ શકે. સરખામણી માટે MCX કે IBJA ભાવ જુઓ.',
   'International silver x USD/INR + import duty premium. GST shamil nathi. Local bhav thi alag hoi shake.': 'આંતરરાષ્ટ્રીય ચાંદી × USD/INR + આયાત ડ્યૂટી. GST સામેલ નથી. સ્થાનિક ભાવથી અલગ હોઈ શકે.',
 
   // Instrument names / kinds / units / regions
@@ -134,5 +134,5 @@ export const gu: Record<string, string> = {
   'Latest NAV from AMFI with 1-day change and 1-year return. Search any scheme or browse by category.': 'AMFI નો તાજો NAV, 1 દિવસનો ફેરફાર અને 1 વર્ષનું રિટર્ન. કોઈપણ યોજના શોધો અથવા કેટેગરી મુજબ જુઓ.',
   'Category': 'કેટેગરી', 'Scheme': 'યોજના', '1-day change': '1 દિવસનો ફેરફાર', '1-year return': '1 વર્ષનું રિટર્ન', 'Show more': 'વધુ બતાવો',
   '1-year return is the change in NAV over 12 months (IDCW payouts, taxes and exit load are not included). Past performance may or may not be sustained in the future.': '1 વર્ષનું રિટર્ન એટલે 12 મહિનામાં NAV નો ફેરફાર (IDCW ચુકવણી, ટેક્સ અને એક્ઝિટ લોડ ગણાયા નથી). ભૂતકાળનું પ્રદર્શન ભવિષ્યમાં જળવાય તે જરૂરી નથી.',
-  '10Y': '10 વર્ષ', 'Intraday points are collected by this site every minute while it is running, so this chart fills up during the trading day.': 'આ સાઇટ ચાલુ હોય ત્યારે દર મિનિટે ભાવ એકત્ર કરે છે, તેથી ટ્રેડિંગ દિવસ દરમિયાન આ ચાર્ટ ભરાતો જાય છે.',
+  '10Y': '10 વર્ષ', 'Gold (spot)': 'સોનું (સ્પોટ)', 'Silver (spot)': 'ચાંદી (સ્પોટ)', 'Spot': 'સ્પોટ', 'Intraday points are collected by this site every minute while it is running, so this chart fills up during the trading day.': 'આ સાઇટ ચાલુ હોય ત્યારે દર મિનિટે ભાવ એકત્ર કરે છે, તેથી ટ્રેડિંગ દિવસ દરમિયાન આ ચાર્ટ ભરાતો જાય છે.',
 };

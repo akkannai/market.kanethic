@@ -80,13 +80,15 @@ export const catalog: Instrument[] = [
   {
     id: 'gold-in', name: 'Gold 999 (India, indicative)', group: 'commodity', region: 'India', currency: 'INR',
     unit: '₹ / 10 g', kind: 'Derived', dp: 0, derived: 'gold-in', hot: true,
-    note: 'International gold x USD/INR + import duty premium. GST ane making charges shamil nathi. Local jeweller / MCX bhav thi thodo alag hoi shake.',
+    note: 'International spot gold x USD/INR / 31.1035 x 10 g + import duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local dealer premium shamil nathi, etle jeweller / MCX / IBJA bhav thi alag hoi shake. Matching mate MCX ke IBJA bhav sathe sarkhavo.',
   },
   {
     id: 'silver-in', name: 'Silver 999 (India, indicative)', group: 'commodity', region: 'India', currency: 'INR',
     unit: '₹ / kg', kind: 'Derived', dp: 0, derived: 'silver-in',
     note: 'International silver x USD/INR + import duty premium. GST shamil nathi. Local bhav thi alag hoi shake.',
   },
+  { id: 'goldspot', name: 'Gold (spot)', symbol: 'XAUUSD=X', group: 'commodity', region: 'Global', currency: 'USD', unit: 'USD / troy oz', kind: 'Spot', dp: 2 },
+  { id: 'silverspot', name: 'Silver (spot)', symbol: 'XAGUSD=X', group: 'commodity', region: 'Global', currency: 'USD', unit: 'USD / troy oz', kind: 'Spot', dp: 3 },
   { id: 'gold', name: 'Gold (COMEX futures)', symbol: 'GC=F', group: 'commodity', region: 'Global', currency: 'USD', unit: 'USD / troy oz', kind: 'Futures', dp: 2, hot: true },
   { id: 'silver', name: 'Silver (COMEX futures)', symbol: 'SI=F', group: 'commodity', region: 'Global', currency: 'USD', unit: 'USD / troy oz', kind: 'Futures', dp: 3 },
   { id: 'brent', name: 'Brent crude (front month)', symbol: 'BZ=F', group: 'commodity', region: 'Global', currency: 'USD', unit: 'USD / barrel', kind: 'Futures', dp: 2, hot: true },

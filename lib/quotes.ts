@@ -149,7 +149,13 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
   const premium = Number(process.env.INDIA_BULLION_PREMIUM_PCT ?? 6);
   const fxr = raws.get('usdinr');
   for (const inst of catalog.filter((i) => i.derived)) {
-    const base = raws.get(inst.derived === 'gold-in' ? 'gold' : 'silver');
+    // Spot bhav preferred (Indian bhav spot par chale che); spot na hoy ke futures thi >3% dur hoy to futures
+    const isGold = inst.derived === 'gold-in';
+    const spot = raws.get(isGold ? 'goldspot' : 'silverspot');
+    const fut = raws.get(isGold ? 'gold' : 'silver');
+    const spotOk = spot && (!fut || Math.abs(spot.price / fut.price - 1) < 0.03);
+    const base = spotOk ? spot : fut;
+    const baseLabel = `${spotOk ? 'spot' : 'COMEX futures'} ${isGold ? 'gold' : 'silver'}`;
     if (!base || !fxr || !Number.isFinite(premium)) {
       failed.push(inst.id);
       continue;
@@ -169,7 +175,7 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
         time: Math.min(base.time, fxr.time),
         spark: base.spark.map((v) => v * k),
       },
-      `Derived: ${inst.derived === 'gold-in' ? 'COMEX gold' : 'COMEX silver'} × USD/INR + ${premium}% duty`,
+      `Derived: ${baseLabel} $${base.price.toFixed(2)}/oz × USD/INR ${fxr.price.toFixed(2)} ÷ 31.1035 × ${isGold ? '10 g' : '1 kg'} + ${premium}% duty`,
     );
   }
   recordTicks(quotes);

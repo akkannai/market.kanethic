@@ -166,10 +166,11 @@ import { getTicks, recordTicks } from '../lib/ticks.ts';
 test('ticks: record, dedupe by quote time, ignore stale, window', () => {
   process.env.DATA_DIR = '/tmp/kmh-ticks-test';
   const now = Date.now();
-  recordTicks({ x: { price: 100, time: now - 120_000 } }, now);
-  recordTicks({ x: { price: 100, time: now - 120_000 } }, now); // same quote time -> skip
-  recordTicks({ x: { price: 101, time: now - 60_000 } }, now);
-  recordTicks({ old: { price: 5, time: now - 10 * 3600_000 } }, now); // 6h thi junu -> ignore
-  assert.equal(getTicks('x', now).length, 2);
-  assert.equal(getTicks('old', now).length, 0);
+  const u = Math.random().toString(36).slice(2); // file ma junu na aave e mate unique id
+  recordTicks({ ['x' + u]: { price: 100, time: now - 120_000 } }, now);
+  recordTicks({ ['x' + u]: { price: 100, time: now - 120_000 } }, now); // same quote time -> skip
+  recordTicks({ ['x' + u]: { price: 101, time: now - 60_000 } }, now);
+  recordTicks({ ['old' + u]: { price: 5, time: now - 10 * 3600_000 } }, now); // 6h thi junu -> ignore
+  assert.equal(getTicks('x' + u, now).length, 2);
+  assert.equal(getTicks('old' + u, now).length, 0);
 });

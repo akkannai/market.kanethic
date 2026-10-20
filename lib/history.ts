@@ -144,8 +144,9 @@ export async function getInstrumentHistory(inst: Instrument, range: RangeKey): P
   const ttl = RANGES[range].ttl;
   const { value } = await cached(`ih:${inst.id}:${range}`, ttl, async () => {
     if (inst.derived) {
-      const baseInst = byId.get(inst.derived === 'gold-in' ? 'gold' : 'silver') as Instrument;
-      const [b, fx] = await Promise.all([chain(baseInst, range), chain(byId.get('usdinr') as Instrument, range)]);
+      const spotInst = byId.get(inst.derived === 'gold-in' ? 'goldspot' : 'silverspot') as Instrument;
+      const futInst = byId.get(inst.derived === 'gold-in' ? 'gold' : 'silver') as Instrument;
+      const [b, fx] = await Promise.all([chain(spotInst, range).catch(() => chain(futInst, range)), chain(byId.get('usdinr') as Instrument, range)]);
       const premium = Number(process.env.INDIA_BULLION_PREMIUM_PCT ?? 6);
       const conv = inst.derived === 'gold-in' ? goldInrPer10g : silverInrPerKg;
       let j = 0;

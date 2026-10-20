@@ -102,7 +102,7 @@ export async function fetchNseNifty50(): Promise<StockRow[]> {
 export const CNBC: Record<string, string> = {
   sp500: '.SPX', dow: '.DJI', nasdaq: '.IXIC', ftse: '.FTSE', dax: '.GDAXI', cac: '.FCHI', nikkei: '.N225', hangseng: '.HSI',
   shanghai: '.SSEC', kospi: '.KS11', sti: '.STI', asx: '.AXJO', dxy: '.DXY', sensex: '.BSESN',
-  gold: '@GC.1', silver: '@SI.1', wti: '@CL.1', natgas: '@NG.1', copper: '@HG.1', brent: '@LCO.1', us10y: 'US10Y',
+  goldspot: 'XAU=', silverspot: 'XAG=', gold: '@GC.1', silver: '@SI.1', wti: '@CL.1', natgas: '@NG.1', copper: '@HG.1', brent: '@LCO.1', us10y: 'US10Y',
 };
 
 export function parseCnbc(json: any, now = Date.now()): Batch {
