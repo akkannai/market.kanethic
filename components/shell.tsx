@@ -48,6 +48,19 @@ function SearchBox() {
     return catalog.filter((i) => i.name.toLowerCase().includes(q) || t(i.name).toLowerCase().includes(q) || i.id.includes(q) || i.symbol?.toLowerCase().includes(q)).slice(0, 7);
   }, [text, t]);
   const go = (path: string) => { setText(''); setOpen(false); router.push(path); };
+  const [funds, setFunds] = useState<{ code: string; name: string; nav: number }[]>([]);
+  useEffect(() => {
+    const q = text.trim();
+    if (q.length < 3) { setFunds([]); return; }
+    const ctl = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/mf/search?q=${encodeURIComponent(q)}&option=growth`, { signal: ctl.signal })
+        .then((r) => (r.ok ? r.json() : Promise.reject()))
+        .then((j) => setFunds((j.results ?? []).slice(0, 5)))
+        .catch(() => {});
+    }, 300);
+    return () => { clearTimeout(timer); ctl.abort(); };
+  }, [text]);
   return (
     <div className="search" onBlur={(e) => { if (!e.currentTarget.contains(e.relatedTarget)) setOpen(false); }}>
       <Search size={16} aria-hidden />
@@ -63,6 +76,9 @@ function SearchBox() {
         <ul className="search-pop">
           {matches.map((m) => (
             <li key={m.id}><button onMouseDown={(e) => e.preventDefault()} onClick={() => go(`/instrument/${m.id}`)}>{t(m.name)}<span>{t(m.kind)}</span></button></li>
+          ))}
+          {funds.map((f) => (
+            <li key={f.code}><button onMouseDown={(e) => e.preventDefault()} onClick={() => go(`/fund/${f.code}`)}><span className="fund-name">{f.name}</span><span>₹{nf(f.nav, 2)}</span></button></li>
           ))}
           <li><button onMouseDown={(e) => e.preventDefault()} onClick={() => go(`/mutual-funds?q=${encodeURIComponent(text.trim())}`)}>{t('Search mutual funds for')} “{text.trim()}”<span>AMFI</span></button></li>
         </ul>

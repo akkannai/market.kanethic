@@ -129,6 +129,8 @@ export const RANGES = {
   '6m': { range: '6mo', interval: '1d', ttl: 600_000 },
   '1y': { range: '1y', interval: '1d', ttl: 600_000 },
   '5y': { range: '5y', interval: '1wk', ttl: 1_800_000 },
+  '10y': { range: '10y', interval: '1wk', ttl: 3_600_000 },
+  max: { range: 'max', interval: '1wk', ttl: 3_600_000 },
 } as const;
 export type RangeKey = keyof typeof RANGES;
 

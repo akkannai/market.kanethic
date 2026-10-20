@@ -23,7 +23,29 @@ export type Quote = {
   state: 'live' | 'closed';
   spark: number[];
   source: string;
+  /** Bija sources ni kimat (cross-check). agree: ok = sources malta ave che, diff = fer che, single = ek j source */
+  checks: { source: string; price: number }[];
+  agree: 'ok' | 'diff' | 'single';
+  diffPct: number | null;
 };
+
+const WINDOW_MS = 30 * 60_000;
+/** Group mujab maximum swikarya fer (%): futures vachche contract month no fer hoy, FX ma ECB daily reference chhe. */
+export const TOLERANCE_PCT: Record<string, number> = { india: 0.4, global: 0.4, fx: 1.0, commodity: 1.5, rates: 1.0 };
+
+export function crossCheck(
+  primary: { price: number; time: number },
+  others: { source: string; price: number; time: number; ref?: boolean }[],
+  tolPct: number,
+  now = Date.now(),
+) {
+  // Fakat samaan samay na prices sarkhavay (ref = daily reference, time na dekhay)
+  const comparable = others.filter((o) => o.price > 0 && (o.ref || Math.abs(o.time - primary.time) <= WINDOW_MS) && now - o.time < 4 * 86400_000);
+  if (!comparable.length) return { checks: [], agree: 'single' as const, diffPct: null };
+  const diffs = comparable.map((o) => (Math.abs(o.price - primary.price) / primary.price) * 100);
+  const diffPct = Math.max(...diffs);
+  return { checks: comparable.map((o) => ({ source: o.source, price: o.price })), agree: diffPct <= tolPct ? ('ok' as const) : ('diff' as const), diffPct };
+}
 
 const LIVE_WINDOW_MS = 30 * 60_000;
 
@@ -34,7 +56,7 @@ function scaleYield(raw: RawQuote): RawQuote {
   return { ...raw, price: raw.price / 10, prev: s(raw.prev), open: s(raw.open), high: s(raw.high), low: s(raw.low), w52h: s(raw.w52h), w52l: s(raw.w52l), spark: raw.spark.map((v) => v / 10) };
 }
 
-export function toQuote(inst: Instrument, raw: RawQuote, source: string, now = Date.now()): Quote {
+export function toQuote(inst: Instrument, raw: RawQuote, source: string, now = Date.now(), others: { source: string; price: number; time: number; ref?: boolean }[] = []): Quote {
   const r = inst.yield ? scaleYield(raw) : raw;
   const diff = r.prev !== null ? r.price - r.prev : null;
   return {
@@ -48,17 +70,19 @@ export function toQuote(inst: Instrument, raw: RawQuote, source: string, now = D
     state: now - r.time <= LIVE_WINDOW_MS ? 'live' : 'closed',
     spark: r.spark,
     source,
+    ...crossCheck(r, others.map((o) => (inst.yield ? { ...o, price: scaleYield({ ...raw, price: o.price }).price } : o)), TOLERANCE_PCT[inst.group] ?? 1, now),
   };
 }
 
 export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; failed: string[] }> {
   const direct = catalog.filter((i) => i.symbol);
   const none = async (): Promise<Batch> => new Map();
-  const [results, nse, yb, cnbc] = await Promise.all([
+  const [results, nse, yb, cnbc, ecb] = await Promise.all([
     pool(direct, 8, (i) => getSymbolQuote(i.symbol as string)),
     fetchNse().catch(none),
     fetchYahooBatch().catch(none),
     fetchCnbc().catch(none),
+    getUsdSeries().catch(() => null),
   ]);
   const quotes: Record<string, Quote> = {};
   const raws = new Map<string, RawQuote>();
@@ -74,10 +98,16 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
     const hit = picks.find(([r]) => r);
     if (hit) {
       const raw = hit[0] as RawQuote;
+      const others: { source: string; price: number; time: number; ref?: boolean }[] = picks.filter(([r]) => r && r !== raw).map(([r, src]) => ({ source: src, price: (r as RawQuote).price, time: (r as RawQuote).time }));
+      if (inst.group === 'fx' && ecb && hit[1] !== 'ECB reference rate (daily)') {
+        const [b, q] = inst.name.split('/');
+        const ref = pairFromSeries(ecb, b, q);
+        if (ref) others.push({ source: 'ECB reference rate (daily)', price: ref.price, time: ref.time, ref: true });
+      }
       // NSE/CNBC/batch ma sparkline nathi: Yahoo chart ni hoy to e rakhvi
       if (!raw.spark.length && results[k]?.spark.length) raw.spark = results[k]!.spark;
       raws.set(inst.id, raw);
-      quotes[inst.id] = toQuote(inst, raw, hit[1]);
+      quotes[inst.id] = toQuote(inst, raw, hit[1], Date.now(), others);
     } else failed.push(inst.id);
   });
 

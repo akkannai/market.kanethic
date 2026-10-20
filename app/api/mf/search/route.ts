@@ -7,6 +7,8 @@ export const dynamic = 'force-dynamic';
 export async function GET(request: Request) {
   const sp = new URL(request.url).searchParams;
   const q = (sp.get('q') ?? '').trim().slice(0, 80);
+  const category = (sp.get('category') ?? '').slice(0, 120) || undefined;
+  const limit = category ? 200 : 30;
   const option = sp.get('option');
   const plan = mfPlan();
   const opt = option === 'growth' || option === 'idcw' ? option : undefined;
@@ -14,7 +16,7 @@ export async function GET(request: Request) {
   let amfiError = '';
   try {
     const { funds, latest, at } = await getFunds();
-    return Response.json({ results: searchFunds(funds, latest, q, { plan, option: opt, limit: 30 }), latest, total: funds.length, at, source: 'AMFI' }, { headers });
+    return Response.json({ results: searchFunds(funds, latest, q, { plan, option: opt, category, limit }), latest, total: funds.length, at, source: 'AMFI' }, { headers });
   } catch (e) {
     amfiError = e instanceof Error ? e.message : String(e);
   }

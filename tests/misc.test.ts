@@ -134,3 +134,29 @@ test('Yahoo v7 batch parse maps by symbol', () => {
   assert.equal(b.get('sp500')!.price, 6370.5); assert.equal(b.get('sp500')!.time, 1_800_000_000_000); assert.equal(b.has('nifty50'), false);
   assert.throws(() => parseYahooQuotes({ finance: { error: { description: 'Unauthorized' } } }), /Unauthorized/);
 });
+
+import { crossCheck } from '../lib/quotes.ts';
+test('crossCheck: agree, differ, ignore stale/incomparable, single', () => {
+  const now = Date.parse('2026-10-20T10:00:00Z');
+  const p = { price: 100, time: now - 60_000 };
+  const a = crossCheck(p, [{ source: 'B', price: 100.2, time: now - 120_000 }], 0.4, now);
+  assert.equal(a.agree, 'ok'); assert.ok(Math.abs(a.diffPct! - 0.2) < 1e-9);
+  assert.equal(crossCheck(p, [{ source: 'B', price: 102, time: now - 120_000 }], 0.4, now).agree, 'diff');
+  assert.equal(crossCheck(p, [{ source: 'B', price: 150, time: now - 3 * 3600_000 }], 0.4, now).agree, 'single'); // old quote ignored
+  assert.equal(crossCheck(p, [{ source: 'ECB', price: 100.5, time: now - 20 * 3600_000, ref: true }], 1, now).agree, 'ok'); // daily reference
+  assert.equal(crossCheck(p, [], 0.4, now).agree, 'single');
+});
+
+import { nseDay, parseCnbcBars, parseFxHistory, parseNseHistory } from '../lib/history.ts';
+test('history parsers: CNBC bars, NSE records, ECB pair series', () => {
+  const bars = parseCnbcBars({ barData: { priceBars: [{ tradeTime: '20250102000000', close: '5,000.5' }, { tradeTime: '20250101000000', close: '4900' }, { tradeTime: 'bad', close: '1' }] } });
+  assert.equal(bars.length, 2); assert.equal(bars[0][1], 4900); assert.equal(bars[1][1], 5000.5); assert.equal(bars[0][0], Date.UTC(2025, 0, 1));
+  assert.throws(() => parseCnbcBars({}));
+  assert.equal(nseDay('20-OCT-2026'), Date.UTC(2026, 9, 20)); assert.equal(nseDay('05-03-2024'), Date.UTC(2024, 2, 5)); assert.equal(nseDay('x'), null);
+  const n = parseNseHistory({ data: { indexCloseOnlineRecords: [{ EOD_TIMESTAMP: '02-JAN-2024', EOD_CLOSE_INDEX_VAL: '21,741.9' }, { EOD_TIMESTAMP: '01-JAN-2024', EOD_CLOSE_INDEX_VAL: 21731 }] } });
+  assert.deepEqual(n.map((p) => p[1]), [21731, 21741.9]);
+  const fx = parseFxHistory({ rates: { '2024-01-02': { INR: 83, EUR: 0.9 }, '2024-01-03': { INR: 84, EUR: 0.9 }, '2024-01-04': { EUR: 0.9 } } }, 'EUR', 'INR');
+  assert.equal(fx.length, 2); assert.ok(Math.abs(fx[0][1] - 83 / 0.9) < 1e-9);
+  const aed = parseFxHistory({ rates: { '2024-01-02': { INR: 83 }, '2024-01-03': { INR: 84 } } }, 'AED', 'INR');
+  assert.ok(Math.abs(aed[1][1] - 84 / 3.6725) < 1e-9);
+});

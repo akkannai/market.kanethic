@@ -31,7 +31,7 @@ Mock Mutual Fund
 100001;INF1;-;Mock Flexi Cap Fund - Direct Plan - Growth;245.6789;${today()}
 100002;INF2;-;Mock Flexi Cap Fund - Regular Plan - Growth;221.1234;${today()}
 100003;INF3;-;Mock Flexi Cap Fund - Regular Plan - IDCW;45.5;${today()}
-${Array.from({ length: 120 }, (_, i) => `1${String(i + 10).padStart(5, '0')};INFX;-;Mock Filler Fund ${i} - Direct Plan - Growth;${(10 + i).toFixed(4)};${today()}`).join('\n')}
+${Array.from({ length: 120 }, (_, i) => `1${String(i + 10).padStart(5, '0')};INFX;-;Mock Filler Fund ${i} - Regular Plan - Growth;${(10 + i).toFixed(4)};${today()}`).join('\n')}
 `;
 const mfapi = (code) => {
   const data = []; const end = Date.now();
@@ -40,6 +40,11 @@ const mfapi = (code) => {
 };
 globalThis.fetch = async (input, init) => {
   const url = new URL(typeof input === 'string' ? input : input.url ?? String(input));
+  if (url.hostname.includes('frankfurter') && /\/v1\/\d{4}-\d{2}-\d{2}\.\./.test(url.pathname)) {
+    const from = Date.parse(url.pathname.match(/(\d{4}-\d{2}-\d{2})\.\./)[1]); const rates = {}; const syms = (url.searchParams.get('symbols') || '').split(',');
+    for (let t = Math.max(from, Date.UTC(2009, 0, 1)); t < Date.now(); t += 86400e3) { const dt = new Date(t); if (dt.getUTCDay() % 6 === 0) continue; const r = {}; syms.forEach((c, i) => { r[c] = c === 'INR' ? 45 + (t - Date.UTC(2009, 0, 1)) / 86400e3 * 0.0075 : 0.9 + i * 0.1; }); rates[dt.toISOString().slice(0, 10)] = r; }
+    return json({ base: 'USD', rates });
+  }
   if (url.hostname.includes('frankfurter')) {
     const rates = {}; for (let d = 9; d >= 0; d--) { const dt = new Date(Date.now() - d * 86400e3); if (dt.getUTCDay() % 6 === 0) continue; const f = 1 + 0.003 * Math.sin(d); rates[dt.toISOString().slice(0, 10)] = { INR: 87.5 * f, EUR: 0.86 * f, GBP: 0.75, CAD: 1.38, AUD: 1.52, SGD: 1.3, JPY: 150 }; }
     return json({ base: 'USD', rates });
@@ -61,8 +66,20 @@ globalThis.fetch = async (input, init) => {
     if (url.pathname === '/') return new Response('<html></html>', { status: 200, headers: [['set-cookie', 'nsit=mock; Path=/'], ['set-cookie', 'nseappid=mock; Path=/']] });
     const ts = new Date(Date.now() + 5.5 * 3600e3).toISOString(); const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+ts.slice(5, 7) - 1];
     const stamp = `${ts.slice(8, 10)}-${mon}-${ts.slice(0, 4)} ${ts.slice(11, 19)}`;
+    if (url.pathname.includes('indicesHistory')) {
+      const [d1, m1, y1] = url.searchParams.get('from').split('-').map(Number); const [d2, m2, y2] = url.searchParams.get('to').split('-').map(Number);
+      const a = Date.UTC(y1, m1 - 1, d1), b = Date.UTC(y2, m2 - 1, d2); const recs = [];
+      if (y1 < 2000) return json({ data: { indexCloseOnlineRecords: [] } });
+      for (let t = a; t <= b; t += 86400e3) { const dt = new Date(t); if (dt.getUTCDay() % 6 === 0) continue; recs.push({ EOD_TIMESTAMP: `${String(dt.getUTCDate()).padStart(2, '0')}-${['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'][dt.getUTCMonth()]}-${dt.getUTCFullYear()}`, EOD_CLOSE_INDEX_VAL: (10000 + (t - Date.UTC(2000, 0, 1)) / 86400e3 * 3.2).toFixed(2) }); }
+      return json({ data: { indexCloseOnlineRecords: recs } });
+    }
     if (url.pathname.includes('allIndices')) return json({ timestamp: stamp, data: [['NIFTY 50', 24593], ['NIFTY BANK', 53600], ['INDIA VIX', 12.4], ['NIFTY IT', 38000], ['NIFTY MIDCAP 100', 56000]].map(([index, last]) => ({ index, last, previousClose: last * 0.995, open: last * 0.997, high: last * 1.004, low: last * 0.99, yearHigh: last * 1.2, yearLow: last * 0.8 })) });
     if (url.pathname.includes('equity-stockIndices')) return json({ timestamp: stamp, data: [{ symbol: 'NIFTY 50', priority: 1, lastPrice: 24593 }, ...['RELIANCE','TCS','HDFCBANK','ICICIBANK','INFY','BHARTIARTL','ITC','SBIN','LT','HINDUNILVR','KOTAKBANK','AXISBANK'].map((symbol, i) => ({ symbol, lastPrice: 1000 + i * 10, previousClose: 1000 + i * 10 - (i - 5) * 3 }))] });
+  }
+  if (url.hostname.includes('ts-api.cnbc.com')) {
+    const n = url.pathname.includes('/1W/') ? 1500 : 1000; const bars = []; let v = 3000;
+    for (let i = n; i > 0; i--) { v *= 1 + Math.sin(i / 7) * 0.004 + 0.0004; const d = new Date(Date.now() - i * (url.pathname.includes('/1W/') ? 7 : 1) * 86400e3); bars.push({ tradeTime: d.toISOString().slice(0, 10).replaceAll('-', '') + '000000', close: v.toFixed(2) }); }
+    return json({ barData: { priceBars: bars } });
   }
   if (url.hostname.includes('cnbc.com')) {
     if (process.env.MOCK_CNBC_FAIL) return new Response('nope', { status: 503 });

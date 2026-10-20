@@ -318,6 +318,25 @@ export function SourcesPage() {
         <div className="table-wrap"><table className="tbl"><thead><tr><th>{t('Source')}</th><th>{t('Used for')}</th><th>{t('Freshness / notes')}</th></tr></thead>
           <tbody>{SOURCE_TABLE.map(([a, b, c]) => <tr key={a}><td><b>{a}</b></td><td>{b}</td><td className="muted">{c}</td></tr>)}</tbody></table></div>
       </Panel>
+      <Panel title="Accuracy check" sub="Each value is compared with every other source that has a quote at the same time">
+        {(() => {
+          const rows = catalog.filter((i) => quotes[i.id]);
+          const cnt = (a: string) => rows.filter((i) => quotes[i.id].agree === a).length;
+          const checked = rows.filter((i) => quotes[i.id].agree !== 'single');
+          return !rows.length ? <Empty>{t('Waiting for data…')}</Empty> : (
+            <>
+              <p className="pad-x muted small">✓ {cnt('ok')} {t('agree')} · ⚠ {cnt('diff')} {t('differ')} · {cnt('single')} {t('single source')}</p>
+              {checked.length === 0 ? <Empty>{t('No instrument has a second source right now.')}</Empty> : (
+                <div className="table-wrap"><table className="tbl"><thead><tr><th>{t('Name')}</th><th>{t('Used')}</th><th>{t('Cross-checked with')}</th><th className="r">{t('Difference')}</th></tr></thead>
+                  <tbody>{checked.map((i) => { const q = quotes[i.id]; return (
+                    <tr key={i.id}><td><b>{t(i.name)}</b></td><td className="num">{nf(q.price, i.dp)} <span className="muted small">({q.source})</span></td>
+                      <td className="muted small">{q.checks.map((c) => `${c.source} ${nf(c.price, i.dp)}`).join(' · ')}</td>
+                      <td className={`r num ${q.agree === 'ok' ? 'up' : 'down'}`}>{q.diffPct?.toFixed(2)}% {q.agree === 'ok' ? '✓' : '⚠'}</td></tr>); })}</tbody></table></div>
+              )}
+            </>
+          );
+        })()}
+      </Panel>
       <Panel title="Live feed health" sub="Since the server last started">
         {!entries.length ? <Empty>{t('No feed activity recorded yet.')}</Empty> : (
           <div className="table-wrap"><table className="tbl"><thead><tr><th>{t('Feed')}</th><th>{t('Last success')}</th><th className="r">{t('OK / Failed')}</th><th>{t('Last error')}</th></tr></thead>

@@ -48,6 +48,8 @@ Har quote ma "as of" time ane Near-live / Last close badge che. Upstream fail th
 (header ma "Delayed" dekhay), kadi banavti value nahi.
 Public / commercial site mate Yahoo na terms check karo; data layer `lib/yahoo.ts` ma alag che — licensed feed ma sahelai thi badli shakay.
 
+Accuracy: dar quote ni bija sources sathe tulna thay che (instrument page par ✓/⚠, `/sources` ma Accuracy check table). History: Yahoo > NSE (India, 1995 thi) > CNBC (global/commodities) > ECB (FX, 1999 thi); `Max` = shuruaat thi. Mutual funds page: category-wise table (NAV, 1D change, 1Y return).
+
 Priority: NSE > Yahoo chart > Yahoo batch > CNBC > Stooq/ECB. Yahoo 429 aape to 5 min cooldown. Source dara quote par lakhelo che.
 
 Diagnosis: `/api/diag` kholo — server thi dara data host nu test kari (HTTP status / error) batave.

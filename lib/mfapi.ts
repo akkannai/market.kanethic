@@ -1,6 +1,6 @@
 import { cached, pool } from './cache.ts';
 import { recordError, recordOk } from './health.ts';
-import { parseMfapi } from './mfmath.ts';
+import { navMetrics, parseMfapi, type NavMetrics } from './mfmath.ts';
 
 export const isSchemeCode = (s: string) => /^\d{3,8}$/.test(s);
 
@@ -47,4 +47,22 @@ export async function searchViaMfapi(query: string, regularOnly: boolean, limit 
   const latest = ok.reduce((m, f) => (f.date > m ? f.date : m), '');
   const cutoff = latest ? new Date(Date.parse(latest) - 10 * MONTH_MS).toISOString().slice(0, 10) : '';
   return { results: ok.filter((f) => f.date >= cutoff).slice(0, limit), latest };
+}
+
+/** Ek scheme nu 1D / 1Y metrics: chhella ~14 mahina no NAV j mangave (nano response). */
+export async function getNavMetrics(code: string): Promise<NavMetrics | null> {
+  const { value } = await cached(`mfm:${code}`, 3 * 3600_000, async () => {
+    const d = (ms: number) => new Date(Date.now() - ms).toISOString().slice(0, 10);
+    try {
+      const res = await fetch(`https://api.mfapi.in/mf/${code}?startDate=${d(430 * 86400_000)}&endDate=${d(-86400_000)}`, { headers: H, signal: AbortSignal.timeout(15_000), cache: 'no-store' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const { points } = parseMfapi(await res.json());
+      recordOk('mfapi.in NAV history');
+      return navMetrics(points);
+    } catch (e) {
+      recordError('mfapi.in NAV history', e);
+      throw e;
+    }
+  });
+  return value;
 }

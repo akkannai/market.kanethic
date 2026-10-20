@@ -124,4 +124,15 @@ export const gu: Record<string, string> = {
   'Result': 'પરિણામ', 'Monthly SIP needed': 'જરૂરી માસિક SIP', 'Amount invested': 'રોકાણ કરેલ રકમ', 'Estimated returns': 'અંદાજિત વળતર', 'Estimated value': 'અંદાજિત મૂલ્ય', 'y': 'વ', 'Year': 'વર્ષ',
   'This calculator is for illustration only. Returns are not guaranteed; actual returns depend on market movements and will vary. Taxes, exit load and expense ratio are not considered. Mutual fund investments are subject to market risks; read all scheme related documents carefully.':
     'આ કેલ્ક્યુલેટર ફક્ત ઉદાહરણ માટે છે. વળતરની ખાતરી નથી; વાસ્તવિક વળતર બજાર પર આધારિત છે અને અલગ હશે. ટેક્સ, એક્ઝિટ લોડ અને ખર્ચ ગુણોત્તર ગણાયા નથી. મ્યુચ્યુઅલ ફંડ રોકાણ બજાર જોખમોને આધીન છે; યોજના સંબંધિત તમામ દસ્તાવેજો ધ્યાનથી વાંચો.',
+  // v1.2
+  'Max': 'મહત્તમ', 'History from': 'ઇતિહાસ શરૂઆત', 'NAV history from': 'NAV ઇતિહાસ શરૂઆત', 'since launch': 'લોન્ચથી',
+  'Single source — not cross-checked': 'એક જ સ્ત્રોત — ક્રોસ-ચેક નથી', 'Verified: sources agree': 'ચકાસાયેલ: સ્ત્રોતો મેળ ખાય છે', 'max difference': 'મહત્તમ તફાવત',
+  'Sources differ': 'સ્ત્રોતોમાં તફાવત', 'verify before relying on this value': 'આ કિંમત પર આધાર રાખતા પહેલાં ચકાસો',
+  'Accuracy check': 'ચોકસાઈ ચકાસણી', 'Each value is compared with every other source that has a quote at the same time': 'દરેક કિંમતને તે જ સમયના અન્ય સ્ત્રોત સાથે સરખાવાય છે',
+  'Waiting for data…': 'ડેટાની રાહ…', 'agree': 'મેળ ખાય છે', 'differ': 'તફાવત', 'single source': 'એક સ્ત્રોત', 'No instrument has a second source right now.': 'હાલમાં કોઈ ઇન્સ્ટ્રુમેન્ટનો બીજો સ્ત્રોત નથી.',
+  'Used': 'વપરાયેલ', 'Cross-checked with': 'ક્રોસ-ચેક', 'Difference': 'તફાવત',
+  'Latest NAV from AMFI with 1-day change and 1-year return. Search any scheme or browse by category.': 'AMFI નો તાજો NAV, 1 દિવસનો ફેરફાર અને 1 વર્ષનું રિટર્ન. કોઈપણ યોજના શોધો અથવા કેટેગરી મુજબ જુઓ.',
+  'Category': 'કેટેગરી', 'Scheme': 'યોજના', '1-day change': '1 દિવસનો ફેરફાર', '1-year return': '1 વર્ષનું રિટર્ન', 'Show more': 'વધુ બતાવો',
+  '1-year return is the change in NAV over 12 months (IDCW payouts, taxes and exit load are not included). Past performance may or may not be sustained in the future.': '1 વર્ષનું રિટર્ન એટલે 12 મહિનામાં NAV નો ફેરફાર (IDCW ચુકવણી, ટેક્સ અને એક્ઝિટ લોડ ગણાયા નથી). ભૂતકાળનું પ્રદર્શન ભવિષ્યમાં જળવાય તે જરૂરી નથી.',
+  '10Y': '10 વર્ષ',
 };

@@ -65,15 +65,16 @@ export async function getFunds(): Promise<{ funds: Fund[]; latest: string; at: n
   return { ...value, at };
 }
 
-export type SearchOpts = { plan?: 'direct' | 'regular' | 'any'; option?: 'growth' | 'idcw'; limit?: number; includeInactive?: boolean };
+export type SearchOpts = { plan?: 'direct' | 'regular' | 'any'; option?: 'growth' | 'idcw'; category?: string; limit?: number; includeInactive?: boolean };
 
 export function searchFunds(funds: Fund[], latest: string, query: string, opts: SearchOpts = {}): Fund[] {
   const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
-  if (!tokens.length) return [];
+  if (!tokens.length && !opts.category) return [];
   const cutoff = new Date(Date.parse(latest) - 10 * 86400_000).toISOString().slice(0, 10);
   const scored: [number, Fund][] = [];
   for (const f of funds) {
     if (!opts.includeInactive && f.date < cutoff) continue;
+    if (opts.category && f.category !== opts.category) continue;
     const n = f.name.toLowerCase();
     if (!tokens.every((t) => n.includes(t) || f.amc.toLowerCase().includes(t))) continue;
     const isDirect = n.includes('direct'), isIdcw = /idcw|dividend/.test(n);
@@ -81,7 +82,24 @@ export function searchFunds(funds: Fund[], latest: string, query: string, opts: 
     if (opts.plan === 'regular' && isDirect) continue;
     if (opts.option === 'growth' && (isIdcw || !n.includes('growth'))) continue;
     if (opts.option === 'idcw' && !isIdcw) continue;
-    scored.push([n.startsWith(tokens[0]) ? 1 : 0, f]);
+    scored.push([tokens.length && n.startsWith(tokens[0]) ? 1 : 0, f]);
   }
   return scored.sort((a, b) => b[0] - a[0] || a[1].name.localeCompare(b[1].name)).slice(0, opts.limit ?? 30).map(([, f]) => f);
+}
+
+/** Category list (active + plan/option filter) with scheme count — mutual fund page ni dropdown mate. */
+export function listCategories(funds: Fund[], latest: string, plan: 'direct' | 'regular' | 'any', option: 'growth' | 'idcw' | undefined = 'growth') {
+  const cutoff = new Date(Date.parse(latest) - 10 * 86400_000).toISOString().slice(0, 10);
+  const counts = new Map<string, number>();
+  for (const f of funds) {
+    if (!f.category || f.date < cutoff) continue;
+    const n = f.name.toLowerCase();
+    const direct = n.includes('direct'), idcw = /idcw|dividend/.test(n);
+    if (plan === 'direct' && !direct) continue;
+    if (plan === 'regular' && direct) continue;
+    if (option === 'growth' && (idcw || !n.includes('growth'))) continue;
+    if (option === 'idcw' && !idcw) continue;
+    counts.set(f.category, (counts.get(f.category) ?? 0) + 1);
+  }
+  return [...counts].map(([name, count]) => ({ name, count })).sort((a, b) => a.name.localeCompare(b.name));
 }

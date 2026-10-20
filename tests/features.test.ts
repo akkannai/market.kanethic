@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { lumpsumSchedule, sipForGoal, sipSchedule } from '../lib/calc.ts';
-import { amfiDate, parseNavAll, searchFunds } from '../lib/amfi.ts';
-import { downsample, parseMfapi, trailingReturns } from '../lib/mfmath.ts';
+import { amfiDate, listCategories, parseNavAll, searchFunds } from '../lib/amfi.ts';
+import { downsample, navMetrics, parseMfapi, trailingReturns } from '../lib/mfmath.ts';
 import { isTriggered, validAlert } from '../lib/alerts.ts';
 
 test('SIP matches closed-form annuity-due formula', () => {
@@ -115,4 +115,23 @@ test('regular-only plan filter hides Direct schemes', () => {
   const q = (o = {}) => searchFunds(f, '2025-10-17', 'alpha', o).map((x) => x.code);
   assert.deepEqual(q({ plan: 'regular' }), ['100002']);
   assert.deepEqual(q({ plan: 'any' }), ['100001', '100002']);
+});
+
+test('category browse + category list (regular growth only)', () => {
+  const f = parseNavAll(NAV);
+  assert.deepEqual(searchFunds(f, '2025-10-17', '', { category: 'Equity Scheme - Flexi Cap Fund', plan: 'regular', option: 'growth' }).map((x) => x.code), []);
+  assert.deepEqual(searchFunds(f, '2025-10-17', '', { category: 'Equity Scheme - Flexi Cap Fund', plan: 'any' }).map((x) => x.code), ['100001', '100002']);
+  assert.deepEqual(searchFunds(f, '2025-10-17', '', {}), []);
+  assert.deepEqual(listCategories(f, '2025-10-17', 'any', 'growth'), [{ name: 'Debt Scheme - Liquid Fund', count: 1 }, { name: 'Equity Scheme - Flexi Cap Fund', count: 1 }]);
+  assert.deepEqual(listCategories(f, '2025-10-17', 'regular', 'idcw'), [{ name: 'Equity Scheme - Flexi Cap Fund', count: 1 }]);
+});
+
+test('navMetrics: 1D change and 1Y return', () => {
+  const d = (y: number, m: number, day: number) => Date.UTC(y, m - 1, day);
+  const pts: [number, number][] = [[d(2025, 10, 16), 100], [d(2025, 10, 17), 110], [d(2026, 10, 15), 150], [d(2026, 10, 16), 160], [d(2026, 10, 17), 165]];
+  const m = navMetrics(pts);
+  assert.equal(m.nav, 165); assert.equal(m.prevNav, 160); assert.equal(m.change, 5); assert.ok(Math.abs(m.changePct! - 3.125) < 1e-9);
+  assert.ok(Math.abs(m.y1! - 50) < 1e-9); // 110 -> 165 (12 months)
+  assert.equal(navMetrics([[d(2026, 10, 17), 10]]).change, null);
+  assert.equal(navMetrics([[d(2026, 9, 1), 10], [d(2026, 10, 17), 11]]).y1, null);
 });

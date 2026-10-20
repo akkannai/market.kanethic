@@ -57,7 +57,7 @@ async function nseSession(): Promise<string> {
   return value;
 }
 
-async function nseGet(path: string): Promise<any> {
+export async function nseGet(path: string): Promise<any> {
   const cookie = await nseSession();
   const res = await fetch(`https://www.nseindia.com${path}`, {
     headers: { 'user-agent': BROWSER_UA, accept: '*/*', 'accept-language': 'en-IN,en;q=0.9', referer: 'https://www.nseindia.com/market-data/live-market-indices', cookie },

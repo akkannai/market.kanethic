@@ -27,7 +27,7 @@ export function downsample(points: NavPoint[], max = 700): NavPoint[] {
 
 const DAY = 86400_000;
 
-function atOrBefore(points: NavPoint[], target: number, tolDays = 10): NavPoint | null {
+export function atOrBefore(points: NavPoint[], target: number, tolDays = 10): NavPoint | null {
   let lo = 0, hi = points.length - 1, ans = -1;
   while (lo <= hi) {
     const mid = (lo + hi) >> 1;
@@ -54,5 +54,22 @@ export function trailingReturns(points: NavPoint[]): Returns {
     m1: abs(at(1)), m6: abs(at(6)), y1: cagr(at(12), 1), y3: cagr(at(36), 3), y5: cagr(at(60), 5),
     inception: inceptionYears >= 1 ? cagr(first, inceptionYears) : null,
     inceptionYears: inceptionYears >= 1 ? inceptionYears : null,
+  };
+}
+
+export type NavMetrics = { navDate: string; nav: number; prevNav: number | null; prevDate: string | null; change: number | null; changePct: number | null; y1: number | null };
+
+/** Latest NAV, pachhi na divas thi ferfar (Rs ane %), ane 1 varsh nu absolute return (NAV 12 mahina pehla vs aaje). */
+export function navMetrics(points: NavPoint[]): NavMetrics {
+  const last = points[points.length - 1];
+  const prev = points.length > 1 ? points[points.length - 2] : null;
+  const d = new Date(last[0]);
+  d.setUTCFullYear(d.getUTCFullYear() - 1);
+  const yAgo = atOrBefore(points, d.getTime());
+  return {
+    navDate: new Date(last[0]).toISOString().slice(0, 10), nav: last[1],
+    prevNav: prev ? prev[1] : null, prevDate: prev ? new Date(prev[0]).toISOString().slice(0, 10) : null,
+    change: prev ? last[1] - prev[1] : null, changePct: prev ? (last[1] / prev[1] - 1) * 100 : null,
+    y1: yAgo ? (last[1] / yAgo[1] - 1) * 100 : null,
   };
 }
