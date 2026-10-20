@@ -4,6 +4,7 @@ import { getSymbolQuote, type RawQuote } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
 import { getUsdSeries, pairFromSeries } from './ecb.ts';
 import { STOOQ, getStooqQuote } from './stooq.ts';
+import { recordTicks } from './ticks.ts';
 import { NSE_NAMES, fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from './providers.ts';
 
 export type Quote = {
@@ -171,5 +172,14 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
       `Derived: ${inst.derived === 'gold-in' ? 'COMEX gold' : 'COMEX silver'} × USD/INR + ${premium}% duty`,
     );
   }
+  recordTicks(quotes);
   return { quotes, failed };
+}
+
+let timer: ReturnType<typeof setInterval> | undefined;
+/** Server par visitor na hoy tyare pan dar minute bhav collect kare (intraday chart mate). */
+export function ensureCollector(run: () => Promise<unknown>) {
+  if (timer) return;
+  timer = setInterval(() => { run().catch(() => {}); }, Number(process.env.COLLECT_INTERVAL_MS) || 60_000);
+  timer.unref?.();
 }

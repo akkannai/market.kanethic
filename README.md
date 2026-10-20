@@ -50,6 +50,8 @@ Public / commercial site mate Yahoo na terms check karo; data layer `lib/yahoo.t
 
 Accuracy: dar quote ni bija sources sathe tulna thay che (instrument page par ✓/⚠, `/sources` ma Accuracy check table). History: Yahoo > NSE (India, 1995 thi) > CNBC (global/commodities) > ECB (FX, 1999 thi); `Max` = shuruaat thi. Mutual funds page: category-wise table (NAV, 1D change, 1Y return).
 
+Intraday (1D) chart: Yahoo na male to site pote dar minute bhav collect kare (`.data/ticks.json`, `DATA_DIR` thi badlay); daily history aaj na bhav sudhi extend thay. Chart khali hoy to page par kaaran lakhelu aave.
+
 Priority: NSE > Yahoo chart > Yahoo batch > CNBC > Stooq/ECB. Yahoo 429 aape to 5 min cooldown. Source dara quote par lakhelo che.
 
 Diagnosis: `/api/diag` kholo — server thi dara data host nu test kari (HTTP status / error) batave.

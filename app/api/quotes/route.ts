@@ -1,9 +1,10 @@
-import { getAllQuotes } from '@/lib/quotes';
+import { ensureCollector, getAllQuotes } from '@/lib/quotes';
 import { cached } from '@/lib/cache';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  ensureCollector(() => cached('all-quotes', 20_000, getAllQuotes));
   try {
     const { value, at, stale } = await cached('all-quotes', 20_000, getAllQuotes);
     return Response.json(

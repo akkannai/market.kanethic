@@ -16,16 +16,17 @@ function useHistory(id: string, range: string) {
   const [points, setPoints] = useState<Pts | null>(null);
   const [meta, setMeta] = useState<{ source: string; from: number } | null>(null);
   const [err, setErr] = useState(false);
+  const [detail, setDetail] = useState('');
   useEffect(() => {
     let off = false;
-    setPoints(null); setErr(false); setMeta(null);
+    setPoints(null); setErr(false); setMeta(null); setDetail('');
     fetch(`/api/history?id=${id}&range=${range}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject()))
+      .then(async (r) => { const j = await r.json().catch(() => ({})); if (!r.ok) { if (!off) setDetail(j.detail ?? ''); throw new Error('x'); } return j; })
       .then((j) => { if (!off) { setPoints(j.points); setMeta({ source: j.source, from: j.from }); } })
       .catch(() => !off && setErr(true));
     return () => { off = true; };
   }, [id, range]);
-  return { points, err, meta };
+  return { points, err, meta, detail };
 }
 
 const tickFmt = (range: string, t: number) =>
@@ -46,7 +47,7 @@ export function InstrumentView({ id }: { id: string }) {
   const { quotes, loading } = useQuotes();
   const q = quotes[id];
   const [range, setRange] = useState<(typeof RANGES)[number]>('1d');
-  const { points, err, meta } = useHistory(id, range);
+  const { points, err, meta, detail } = useHistory(id, range);
   // Intraday chart na aave (Yahoo block) to aapoaap 6M par jao
   useEffect(() => { if (err && (range === '1d' || range === '5d')) setRange('6m'); }, [err, range]);
   const first = points?.[0]?.[1], last = points?.at(-1)?.[1];
@@ -86,7 +87,7 @@ export function InstrumentView({ id }: { id: string }) {
           {rangeChange !== null && range !== '1d' && <span className={`${dir(rangeChange)} small num`}>{range === 'max' ? t('Max') : range.toUpperCase()}: {pctText(rangeChange)}</span>}
         </div>
         <div className="chart">
-          {err ? <Empty>{t('Chart data is unavailable right now.')}</Empty> : !points ? <Skel h={320} /> : (
+          {err ? <Empty>{t('Chart data is unavailable right now.')}{detail && <span className="muted small block">{detail}</span>}</Empty> : !points ? <Skel h={320} /> : (
             <ResponsiveContainer width="100%" height={320}>
               <AreaChart data={points.map(([t, v]) => ({ t, v }))} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
                 <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stopColor={color} stopOpacity={0.28} /><stop offset="100%" stopColor={color} stopOpacity={0} /></linearGradient></defs>
@@ -103,6 +104,7 @@ export function InstrumentView({ id }: { id: string }) {
             </ResponsiveContainer>
           )}
         </div>
+        {meta && points && meta.source === 'Collected by this site' && <p className="chart-note muted small">{t('Intraday points are collected by this site every minute while it is running, so this chart fills up during the trading day.')}</p>}
         {meta && points && <p className="chart-note muted small">{t('History from')} {new Date(meta.from).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'UTC' })} · {t('Source')}: {meta.source}</p>}
         {q && <AccuracyBadge q={q} dp={inst.dp} />}
         {stats.length > 0 && <dl className="stats">{stats.map(([k, v]) => <div key={k}><dt>{k}</dt><dd className="num">{v}</dd></div>)}</dl>}

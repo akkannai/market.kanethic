@@ -5,6 +5,7 @@ import { CNBC, NSE_NAMES, nseGet } from './providers.ts';
 import { downsample } from './mfmath.ts';
 import { RANGES, getHistory, yahooCooldown, type HistoryPoint, type RangeKey } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
+import { getTicks } from './ticks.ts';
 
 const DAY = 86400_000;
 const TIMEOUT = () => Number(process.env.UPSTREAM_TIMEOUT_MS) || 8000;
@@ -112,6 +113,13 @@ async function fxHistory(base: string, quote: string, range: RangeKey): Promise<
 async function chain(inst: Instrument, range: RangeKey): Promise<History> {
   const tries: [string, () => Promise<HistoryPoint[]>][] = [];
   if (inst.symbol && !yahooCooldown()) tries.push(['Yahoo Finance', () => getHistory(inst.symbol as string, range)]);
+  if (range === '1d') {
+    tries.push(['Collected by this site', async () => {
+      const t = getTicks(inst.id);
+      if (t.length < 5) throw new Error(`Only ${t.length} intraday points collected so far (site collects 1 per minute while running)`);
+      return t;
+    }]);
+  }
   if (!intraday(range)) {
     if (NSE_NAMES[inst.id]) tries.push(['NSE India', () => nseHistory(NSE_NAMES[inst.id], range)]);
     if (CNBC[inst.id]) tries.push(['CNBC', () => cnbcHistory(CNBC[inst.id], range)]);
