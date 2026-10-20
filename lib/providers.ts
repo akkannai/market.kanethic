@@ -23,17 +23,17 @@ export const NSE_NAMES: Record<string, string> = {
 
 /** "20-Oct-2026 15:30:00" (IST) -> epoch ms */
 export function nseTime(s: string): number | null {
-  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})\s+(\d{2}):(\d{2}):(\d{2})$/.exec(s.trim());
+  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})[\s,]+(\d{1,2}):(\d{2})(?::(\d{2}))?$/.exec(s.trim());
   if (!m) return null;
   const mon = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'].indexOf(m[2].toLowerCase());
   if (mon < 0) return null;
-  return Date.UTC(+m[3], mon, +m[1], +m[4], +m[5], +m[6]) - 5.5 * 3600_000;
+  return Date.UTC(+m[3], mon, +m[1], +m[4], +m[5], +(m[6] ?? 0)) - 5.5 * 3600_000;
 }
 
 export function parseNseAllIndices(json: any): Batch {
   const rows = json?.data;
   const stamp = typeof json?.timestamp === 'string' ? nseTime(json.timestamp) : null;
-  if (!Array.isArray(rows) || stamp === null) throw new Error('Unexpected NSE format');
+  if (!Array.isArray(rows) || stamp === null) throw new Error(`Unexpected NSE format (keys: ${Object.keys(json ?? {}).slice(0, 6).join(',') || 'none'}; timestamp: ${String(json?.timestamp).slice(0, 30)})`);
   const byName = new Map<string, any>(rows.map((r: any) => [String(r.index ?? r.indexSymbol).toUpperCase(), r]));
   const out: Batch = new Map();
   for (const [id, name] of Object.entries(NSE_NAMES)) {

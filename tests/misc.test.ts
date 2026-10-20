@@ -103,6 +103,7 @@ test('Stooq csv parse', () => {
 import { nseTime, parseCnbc, parseNseAllIndices, parseNseStocks, parseYahooQuotes } from '../lib/providers.ts';
 test('NSE allIndices parse + IST timestamp', () => {
   assert.equal(nseTime('20-Oct-2026 15:30:00'), Date.parse('2026-10-20T10:00:00Z'));
+  assert.equal(nseTime('20-Oct-2026 15:30'), Date.parse('2026-10-20T10:00:00Z')); // seconds vagar
   assert.equal(nseTime('garbage'), null);
   const b = parseNseAllIndices({ timestamp: '20-Oct-2026 15:30:00', data: [
     { index: 'NIFTY 50', last: 24593.7, previousClose: 24500, open: 24520, high: 24600, low: 24480, yearHigh: 26000, yearLow: 21000 },
