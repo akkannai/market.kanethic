@@ -48,7 +48,28 @@ globalThis.fetch = async (input, init) => {
     const rows = ['Date,Open,High,Low,Close,Volume']; for (let d = 8; d >= 0; d--) { const dt = new Date(Date.now() - d * 86400e3); if (dt.getUTCDay() % 6 === 0) continue; const c = 6000 + d * 7; rows.push(`${dt.toISOString().slice(0, 10)},${c},${c + 20},${c - 20},${c + 3},1`); }
     return new Response(rows.join('\n'), { status: 200 });
   }
-  if (url.hostname.includes('yahoo.com') && process.env.MOCK_YAHOO_ALL_FAIL) return new Response('Too Many Requests', { status: 429 });
+  if (url.hostname === 'fc.yahoo.com') return new Response('', { status: 404, headers: [['set-cookie', 'A3=mock; Path=/; Domain=.yahoo.com']] });
+  if (url.hostname.includes('yahoo.com') && url.pathname.includes('getcrumb')) return new Response('mockCrumb123', { status: 200 });
+  if (url.hostname.includes('yahoo.com') && url.pathname.includes('/v7/finance/quote')) {
+    if (process.env.MOCK_V7_FAIL) return new Response('Too Many Requests', { status: 429 });
+    const syms = decodeURIComponent(url.searchParams.get('symbols') || '').split(',');
+    const now = Math.floor(Date.now() / 1000);
+    return json({ quoteResponse: { result: syms.map((symbol) => { const b = base[symbol] ?? 100 + (hash(symbol) % 20000) / 10; return { symbol, regularMarketPrice: b * 1.004, regularMarketPreviousClose: b, regularMarketOpen: b, regularMarketDayHigh: b * 1.01, regularMarketDayLow: b * 0.99, regularMarketTime: now - 20, fiftyTwoWeekHigh: b * 1.2, fiftyTwoWeekLow: b * 0.8 }; }), error: null } });
+  }
+  if (url.hostname.includes('nseindia.com')) {
+    if (process.env.MOCK_NSE_FAIL) return new Response('Forbidden', { status: 403 });
+    if (url.pathname === '/') return new Response('<html></html>', { status: 200, headers: [['set-cookie', 'nsit=mock; Path=/'], ['set-cookie', 'nseappid=mock; Path=/']] });
+    const ts = new Date(Date.now() + 5.5 * 3600e3).toISOString(); const mon = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+ts.slice(5, 7) - 1];
+    const stamp = `${ts.slice(8, 10)}-${mon}-${ts.slice(0, 4)} ${ts.slice(11, 19)}`;
+    if (url.pathname.includes('allIndices')) return json({ timestamp: stamp, data: [['NIFTY 50', 24593], ['NIFTY BANK', 53600], ['INDIA VIX', 12.4], ['NIFTY IT', 38000], ['NIFTY MIDCAP 100', 56000]].map(([index, last]) => ({ index, last, previousClose: last * 0.995, open: last * 0.997, high: last * 1.004, low: last * 0.99, yearHigh: last * 1.2, yearLow: last * 0.8 })) });
+    if (url.pathname.includes('equity-stockIndices')) return json({ timestamp: stamp, data: [{ symbol: 'NIFTY 50', priority: 1, lastPrice: 24593 }, ...['RELIANCE','TCS','HDFCBANK','ICICIBANK','INFY','BHARTIARTL','ITC','SBIN','LT','HINDUNILVR','KOTAKBANK','AXISBANK'].map((symbol, i) => ({ symbol, lastPrice: 1000 + i * 10, previousClose: 1000 + i * 10 - (i - 5) * 3 }))] });
+  }
+  if (url.hostname.includes('cnbc.com')) {
+    if (process.env.MOCK_CNBC_FAIL) return new Response('nope', { status: 503 });
+    const syms = decodeURIComponent(url.searchParams.get('symbols') || '').split('|');
+    return json({ FormattedQuoteResult: { FormattedQuote: syms.map((symbol, i) => ({ symbol, last: (1000 + i * 321.5).toLocaleString('en-US'), previous_day_closing: String(1000 + i * 321.5 - 5), open: '1,000', high: '9,999', low: '1', last_time_msec: Date.now() - 30000 })) } });
+  }
+  if (url.hostname.includes('yahoo.com') && process.env.MOCK_YAHOO_ALL_FAIL && url.pathname.includes('/v8/')) return new Response('Too Many Requests', { status: 429 });
   if (url.hostname.includes('yahoo.com') && process.env.MOCK_YAHOO_FX_FAIL && decodeURIComponent(url.pathname).endsWith('=X')) return new Response('Too Many Requests', { status: 429 });
   if (url.hostname.includes('yahoo.com')) {
     const symbol = decodeURIComponent(url.pathname.split('/').pop());

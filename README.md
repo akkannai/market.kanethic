@@ -34,6 +34,9 @@ Top gainers/losers ni list `lib/nifty50.ts` ma che.
 | Data | Source | Note |
 |---|---|---|
 | Indices, FX, futures, yield | Yahoo Finance public chart endpoints | Near-live; kyarek 15–20 min delay. Unofficial endpoint |
+| Indian indices (primary/backup) | NSE India official API (`/api/allIndices`) | Cookie-wala session; Nifty 50 movers pan NSE thi aave jo Yahoo na chale |
+| Global indices + commodities + US 10Y (backup) | CNBC quote service | Free, key vagar; sparkline nathi |
+| All instruments (backup) | Yahoo batch quote (cookie + crumb) | Yahoo chart 429 aape tyare |
 | Global indices (fallback) | Stooq daily CSV | Yahoo na aape tyare: S&P 500, Dow, FTSE, DAX, CAC, Nikkei, Hang Seng, Shanghai, KOSPI, STI (Nasdaq Composite ane ASX 200 nu fallback nathi); daily close |
 | Currencies (fallback) | ECB via Frankfurter (api.frankfurter.dev) | Yahoo na aape tyare; daily reference rate, "Last close" tarike dekhay; AED = USD peg 3.6725 |
 | Indian gold/silver | COMEX × USD/INR × (1 + duty%) | Indicative; GST/making vagar. `INDIA_BULLION_PREMIUM_PCT` |
@@ -44,6 +47,8 @@ Top gainers/losers ni list `lib/nifty50.ts` ma che.
 Har quote ma "as of" time ane Near-live / Last close badge che. Upstream fail thay to last good value apvama ave che
 (header ma "Delayed" dekhay), kadi banavti value nahi.
 Public / commercial site mate Yahoo na terms check karo; data layer `lib/yahoo.ts` ma alag che — licensed feed ma sahelai thi badli shakay.
+
+Priority: NSE > Yahoo chart > Yahoo batch > CNBC > Stooq/ECB. Yahoo 429 aape to 5 min cooldown. Source dara quote par lakhelo che.
 
 Diagnosis: `/api/diag` kholo — server thi dara data host nu test kari (HTTP status / error) batave.
 

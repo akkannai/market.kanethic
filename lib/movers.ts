@@ -1,6 +1,7 @@
 import { cached, pool } from './cache.ts';
 import { nifty50 } from './nifty50.ts';
 import { getSymbolQuote } from './yahoo.ts';
+import { fetchNseNifty50 } from './providers.ts';
 
 export type Mover = { symbol: string; name: string; price: number; change: number; pct: number; time: number };
 
@@ -18,6 +19,13 @@ export async function getMovers() {
       if (!q || q.prev === null) return;
       rows.push({ symbol: symbol.replace(/\.NS$/, ''), name, price: q.price, change: q.price - q.prev, pct: ((q.price - q.prev) / q.prev) * 100, time: q.time });
     });
+    if (rows.length < 10) {
+      // Yahoo na male to NSE ni official Nifty 50 list
+      const names = new Map(nifty50.map(([sym, name]) => [sym.replace(/\.NS$/, ''), name]));
+      const nse = await fetchNseNifty50();
+      rows.length = 0;
+      for (const r of nse) rows.push({ symbol: r.symbol, name: names.get(r.symbol) ?? r.symbol, price: r.price, change: r.price - r.prev, pct: ((r.price - r.prev) / r.prev) * 100, time: r.time });
+    }
     if (rows.length < 10) throw new Error(`Only ${rows.length} constituents available`);
     return { ...rank(rows), count: rows.length, asOf: Math.max(...rows.map((r) => r.time)) };
   });

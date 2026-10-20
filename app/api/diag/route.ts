@@ -1,4 +1,5 @@
 import { cached } from '@/lib/cache';
+import { fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from '@/lib/providers';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,7 +29,25 @@ async function probe([name, url]: [string, string]) {
   }
 }
 
+// Provider functions ne real parse sudhi test kare: kitta instrument malya.
+async function probeProvider(name: string, fn: () => Promise<Batch>) {
+  const t0 = Date.now();
+  try {
+    const b = await fn();
+    const [id, q] = [...b][0];
+    return { name, ok: true, status: 200, ms: Date.now() - t0, sample: `${b.size} instruments, e.g. ${id}=${q.price}` };
+  } catch (e) {
+    const c = (e as { cause?: { code?: string } })?.cause;
+    return { name, ok: false, status: 0, ms: Date.now() - t0, sample: `${e instanceof Error ? e.message : e}${c?.code ? ` (${c.code})` : ''}` };
+  }
+}
+
 export async function GET() {
-  const { value, at } = await cached('diag', 60_000, async () => Promise.all(TESTS.map(probe)));
+  const { value, at } = await cached('diag', 60_000, async () => Promise.all([
+    probeProvider('NSE India (Indian indices)', fetchNse),
+    probeProvider('CNBC (global indices/commodities)', fetchCnbc),
+    probeProvider('Yahoo batch quote (cookie+crumb)', fetchYahooBatch),
+    ...TESTS.map(probe),
+  ]));
   return Response.json({ checkedAt: at, node: process.version, results: value }, { headers: { 'Cache-Control': 'no-store' } });
 }

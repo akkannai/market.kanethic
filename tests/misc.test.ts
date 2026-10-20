@@ -99,3 +99,38 @@ test('Stooq csv parse', () => {
   assert.throws(() => parseStooqCsv('No data'), /No data/);
   assert.throws(() => parseStooqCsv('Date,Open,High,Low,Close,Volume\n2025-10-15,1,2,0.5,100,5\n'), /Not enough/);
 });
+
+import { nseTime, parseCnbc, parseNseAllIndices, parseNseStocks, parseYahooQuotes } from '../lib/providers.ts';
+test('NSE allIndices parse + IST timestamp', () => {
+  assert.equal(nseTime('20-Oct-2026 15:30:00'), Date.parse('2026-10-20T10:00:00Z'));
+  assert.equal(nseTime('garbage'), null);
+  const b = parseNseAllIndices({ timestamp: '20-Oct-2026 15:30:00', data: [
+    { index: 'NIFTY 50', last: 24593.7, previousClose: 24500, open: 24520, high: 24600, low: 24480, yearHigh: 26000, yearLow: 21000 },
+    { index: 'INDIA VIX', last: 12.4, previousClose: 12.9 },
+    { index: 'NIFTY BANK', last: 'bad' },
+  ] });
+  assert.equal(b.get('nifty50')!.price, 24593.7); assert.equal(b.get('nifty50')!.prev, 24500); assert.equal(b.get('nifty50')!.w52h, 26000);
+  assert.equal(b.get('vix')!.price, 12.4); assert.equal(b.has('banknifty'), false);
+  assert.throws(() => parseNseAllIndices({ data: [] }));
+  assert.throws(() => parseNseAllIndices({ timestamp: '20-Oct-2026 15:30:00', data: [{ index: 'OTHER', last: 1 }] }), /No NSE/);
+});
+test('NSE stocks parse skips index row', () => {
+  const r = parseNseStocks({ timestamp: '20-Oct-2026 15:30:00', data: [{ symbol: 'NIFTY 50', priority: 1, lastPrice: 24000 }, { symbol: 'TCS', lastPrice: '3,500.5', previousClose: 3400 }, { symbol: 'X', lastPrice: 5 }] });
+  assert.equal(r.length, 1); assert.equal(r[0].symbol, 'TCS'); assert.equal(r[0].price, 3500.5);
+});
+test('CNBC parse: commas, symbol identity, timestamp required', () => {
+  const now = Date.parse('2026-10-20T12:00:00Z');
+  const b = parseCnbc({ FormattedQuoteResult: { FormattedQuote: [
+    { symbol: '.SPX', last: '6,370.50', previous_day_closing: '6,333.30', open: '6,340', high: '6,380', low: '6,330', last_time_msec: now - 60000 },
+    { symbol: '.DJI', last: '45,000', last_time: 'not a date' },
+    { symbol: 'OTHER', last: '1', last_time_msec: now },
+  ] } }, now);
+  assert.equal(b.get('sp500')!.price, 6370.5); assert.equal(b.get('sp500')!.prev, 6333.3);
+  assert.equal(b.has('dow'), false); assert.equal(b.size, 1);
+  assert.throws(() => parseCnbc({}, now));
+});
+test('Yahoo v7 batch parse maps by symbol', () => {
+  const b = parseYahooQuotes({ quoteResponse: { result: [{ symbol: '^GSPC', regularMarketPrice: 6370.5, regularMarketPreviousClose: 6333.3, regularMarketTime: 1_800_000_000, fiftyTwoWeekHigh: 7000 }, { symbol: '^NSEI', regularMarketPrice: 0, regularMarketTime: 1 }] } });
+  assert.equal(b.get('sp500')!.price, 6370.5); assert.equal(b.get('sp500')!.time, 1_800_000_000_000); assert.equal(b.has('nifty50'), false);
+  assert.throws(() => parseYahooQuotes({ finance: { error: { description: 'Unauthorized' } } }), /Unauthorized/);
+});

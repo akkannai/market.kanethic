@@ -4,6 +4,7 @@ import { getSymbolQuote, type RawQuote } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
 import { getUsdSeries, pairFromSeries } from './ecb.ts';
 import { STOOQ, getStooqQuote } from './stooq.ts';
+import { NSE_NAMES, fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from './providers.ts';
 
 export type Quote = {
   id: string;
@@ -52,15 +53,31 @@ export function toQuote(inst: Instrument, raw: RawQuote, source: string, now = D
 
 export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; failed: string[] }> {
   const direct = catalog.filter((i) => i.symbol);
-  const results = await pool(direct, 8, (i) => getSymbolQuote(i.symbol as string));
+  const none = async (): Promise<Batch> => new Map();
+  const [results, nse, yb, cnbc] = await Promise.all([
+    pool(direct, 8, (i) => getSymbolQuote(i.symbol as string)),
+    fetchNse().catch(none),
+    fetchYahooBatch().catch(none),
+    fetchCnbc().catch(none),
+  ]);
   const quotes: Record<string, Quote> = {};
   const raws = new Map<string, RawQuote>();
   const failed: string[] = [];
   direct.forEach((inst, k) => {
-    const raw = results[k];
-    if (raw) {
+    // Priority: NSE (official, Indian indices) > Yahoo chart (sparkline sathe) > Yahoo batch > CNBC
+    const picks: [RawQuote | undefined, string][] = [
+      [NSE_NAMES[inst.id] ? nse.get(inst.id) : undefined, 'NSE India'],
+      [results[k], 'Yahoo Finance'],
+      [yb.get(inst.id), 'Yahoo Finance (batch)'],
+      [cnbc.get(inst.id), 'CNBC'],
+    ];
+    const hit = picks.find(([r]) => r);
+    if (hit) {
+      const raw = hit[0] as RawQuote;
+      // NSE/CNBC/batch ma sparkline nathi: Yahoo chart ni hoy to e rakhvi
+      if (!raw.spark.length && results[k]?.spark.length) raw.spark = results[k]!.spark;
       raws.set(inst.id, raw);
-      quotes[inst.id] = toQuote(inst, raw, 'Yahoo Finance');
+      quotes[inst.id] = toQuote(inst, raw, hit[1]);
     } else failed.push(inst.id);
   });
 

@@ -83,7 +83,11 @@ export function parseHistory(json: any): HistoryPoint[] {
   return pts;
 }
 
+let blockedUntil = 0; // Yahoo 429 aape to 5 min sudhi vadhu try na karvu (ban vadhe nahi)
+export const yahooCooldown = () => Math.max(0, blockedUntil - Date.now());
+
 async function fetchChart(symbol: string, range: string, interval: string): Promise<any> {
+  if (Date.now() < blockedUntil) throw new Error('Yahoo rate-limited (cooling down)');
   const timeout = Number(process.env.UPSTREAM_TIMEOUT_MS) || 8000;
   let lastErr: unknown;
   for (const host of HOSTS) {
@@ -94,6 +98,7 @@ async function fetchChart(symbol: string, range: string, interval: string): Prom
         signal: AbortSignal.timeout(timeout),
         cache: 'no-store',
       });
+      if (res.status === 429) { blockedUntil = Date.now() + 5 * 60_000; throw new Error('HTTP 429'); }
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       return await res.json();
     } catch (e) {
