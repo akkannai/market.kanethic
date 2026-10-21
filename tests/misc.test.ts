@@ -174,3 +174,21 @@ test('ticks: record, dedupe by quote time, ignore stale, window', () => {
   assert.equal(getTicks('x' + u, now).length, 2);
   assert.equal(getTicks('old' + u, now).length, 0);
 });
+
+import { _resetCalibration, calibrate, parseIbja } from '../lib/ibja.ts';
+test('IBJA parse: table styles, AM/PM, plausibility, missing', () => {
+  const html = `<table><tr><td>Gold 999</td><td>1,47,120</td><td>1,47,550</td></tr><tr><td>Gold 995</td><td>1,46,000</td></tr><tr><td>Silver 999</td><td>1,89,500</td><td>1,90,100</td></tr></table>`;
+  assert.deepEqual(parseIbja(html), { gold: 147550, silver: 190100 });
+  assert.deepEqual(parseIbja('<div>Gold 999 (24 KT)</div><span>Rate: 147120</span><p>Gold 916</p>'), { gold: 147120, silver: undefined });
+  assert.throws(() => parseIbja('<html>no rates</html>'), /not found/);
+});
+test('IBJA calibration locks k when IBJA rate changes, then price follows parity', () => {
+  _resetCalibration();
+  const k1 = calibrate('gold', 147000, 130000)!; // k = 1.1308 -> implausible (>1.30? no, 1.13 ok)
+  assert.ok(Math.abs(k1 - 147000 / 130000) < 1e-12);
+  assert.equal(calibrate('gold', 147000, 140000), k1); // same IBJA rate -> k unchanged (price moves with parity)
+  const k2 = calibrate('gold', 148000, 131000)!;
+  assert.ok(Math.abs(k2 - 148000 / 131000) < 1e-12);
+  assert.equal(calibrate('gold', 999999, 100), k2); // implausible k ignored, old k kept
+  assert.equal(calibrate('silver', undefined, 100), null);
+});

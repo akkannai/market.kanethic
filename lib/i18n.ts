@@ -81,7 +81,7 @@ export const gu: Record<string, string> = {
   'Open': 'ખુલ્યો', 'Day high': 'દિવસનો ઊંચો', 'Day low': 'દિવસનો નીચો', 'Previous close': 'અગાઉનું બંધ', '52-week high': '52 સપ્તાહનો ઊંચો',
   '52-week low': '52 સપ્તાહનો નીચો', 'As of': 'સમય', 'Source': 'સ્ત્રોત', 'Related': 'સંબંધિત', 'Price unavailable right now.': 'હાલમાં ભાવ ઉપલબ્ધ નથી.',
   'Chart data is unavailable right now.': 'હાલમાં ચાર્ટ ડેટા ઉપલબ્ધ નથી.', 'Yield change is in basis points (1 bp = 0.01%)': 'યીલ્ડ ફેરફાર બેસિસ પોઈન્ટમાં (1 bp = 0.01%)',
-  'International spot gold x USD/INR / 31.1035 x 10 g + import duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local dealer premium shamil nathi, etle jeweller / MCX / IBJA bhav thi alag hoi shake. Matching mate MCX ke IBJA bhav sathe sarkhavo.': 'આંતરરાષ્ટ્રીય સ્પોટ સોનું × USD/INR ÷ 31.1035 × 10 ગ્રામ + આયાત ડ્યૂટી. GST (3%), મેકિંગ ચાર્જ અને સ્થાનિક પ્રીમિયમ સામેલ નથી, તેથી જ્વેલર / MCX / IBJA ભાવથી અલગ હોઈ શકે. સરખામણી માટે MCX કે IBJA ભાવ જુઓ.',
+  'Level IBJA 24K (999) rate (GST vagar) par calibrate kareli; live movement international gold ane USD/INR thi. IBJA na male to spot x USD/INR + duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local premium shamil nathi.': 'લેવલ IBJA 24K (999) રેટ (GST વગર) પર કેલિબ્રેટ કરેલ; લાઇવ ફેરફાર આંતરરાષ્ટ્રીય સોનું અને USD/INR મુજબ. IBJA ન મળે તો સ્પોટ × USD/INR + ડ્યૂટી. GST (3%), મેકિંગ ચાર્જ અને સ્થાનિક પ્રીમિયમ સામેલ નથી.',
   'International silver x USD/INR + import duty premium. GST shamil nathi. Local bhav thi alag hoi shake.': 'આંતરરાષ્ટ્રીય ચાંદી × USD/INR + આયાત ડ્યૂટી. GST સામેલ નથી. સ્થાનિક ભાવથી અલગ હોઈ શકે.',
 
   // Instrument names / kinds / units / regions

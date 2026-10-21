@@ -80,7 +80,7 @@ export const catalog: Instrument[] = [
   {
     id: 'gold-in', name: 'Gold 999 (India, indicative)', group: 'commodity', region: 'India', currency: 'INR',
     unit: '₹ / 10 g', kind: 'Derived', dp: 0, derived: 'gold-in', hot: true,
-    note: 'International spot gold x USD/INR / 31.1035 x 10 g + import duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local dealer premium shamil nathi, etle jeweller / MCX / IBJA bhav thi alag hoi shake. Matching mate MCX ke IBJA bhav sathe sarkhavo.',
+    note: 'Level IBJA 24K (999) rate (GST vagar) par calibrate kareli; live movement international gold ane USD/INR thi. IBJA na male to spot x USD/INR + duty (INDIA_BULLION_PREMIUM_PCT). GST (3%), making charges ane local premium shamil nathi.',
   },
   {
     id: 'gold-in-gst', name: 'Gold 999 incl. GST (India, approx)', group: 'commodity', region: 'India', currency: 'INR',

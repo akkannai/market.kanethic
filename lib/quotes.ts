@@ -5,6 +5,7 @@ import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
 import { getUsdSeries, pairFromSeries } from './ecb.ts';
 import { STOOQ, getStooqQuote } from './stooq.ts';
 import { recordTicks } from './ticks.ts';
+import { calibrate, capturedRate, getIbja } from './ibja.ts';
 import { NSE_NAMES, fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from './providers.ts';
 
 export type Quote = {
@@ -145,6 +146,8 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
     }
   }
 
+  const ibja = await getIbja().catch(() => null);
+
   // Indian bullion: international price x USD/INR (x duty premium). Behe input hoy to j.
   const premium = Number(process.env.INDIA_BULLION_PREMIUM_PCT ?? 6);
   const fxr = raws.get('usdinr');
@@ -163,10 +166,17 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
       continue;
     }
     const conv0 = isGold ? goldInrPer10g : silverInrPerKg;
-    const conv = (a: number, b: number, c: number) => conv0(a, b, c) * gstK;
-    const price = conv(base.price, fxr.price, premium);
-    const prev = base.prev !== null && fxr.prev !== null ? conv(base.prev, fxr.prev, premium) : null;
-    const k = price / base.price;
+    // Calibration: IBJA published rate (GST vagar) par level lock; movement live parity thi
+    const ibjaRate = ibja ? (isGold ? ibja.gold : ibja.silver) : undefined;
+    const parity0 = conv0(base.price, fxr.price, 0);
+    const kCal = calibrate(isGold ? 'gold' : 'silver', ibjaRate, parity0);
+    const k = kCal ?? 1 + premium / 100;
+    const price = parity0 * k * gstK;
+    const prev = base.prev !== null && fxr.prev !== null ? conv0(base.prev, fxr.prev, 0) * k * gstK : null;
+    const locked = capturedRate(isGold ? 'gold' : 'silver');
+    const kLabel = kCal
+      ? `calibrated to IBJA ${isGold ? '24K' : 'silver 999'} ₹${Math.round(locked as number).toLocaleString('en-IN')} (× ${kCal.toFixed(4)}); moves live with gold & USD/INR`
+      : `+ ${premium}% duty (IBJA unavailable)`;
     quotes[inst.id] = toQuote(
       inst,
       {
@@ -178,7 +188,7 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
         time: Math.min(base.time, fxr.time),
         spark: base.spark.map((v) => v * k),
       },
-      `Derived: ${baseLabel} $${base.price.toFixed(2)}/oz × USD/INR ${fxr.price.toFixed(2)} ÷ 31.1035 × ${isGold ? '10 g' : '1 kg'} + ${premium}% duty${gstK > 1 ? ` + ${gstPct}% GST` : ''}`,
+      `Derived: ${baseLabel} $${base.price.toFixed(2)}/oz × USD/INR ${fxr.price.toFixed(2)} ÷ 31.1035 × ${isGold ? '10 g' : '1 kg'} ${kLabel}${gstK > 1 ? ` + ${gstPct}% GST` : ''}`,
     );
   }
   recordTicks(quotes);

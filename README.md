@@ -39,7 +39,8 @@ Top gainers/losers ni list `lib/nifty50.ts` ma che.
 | All instruments (backup) | Yahoo batch quote (cookie + crumb) | Yahoo chart 429 aape tyare |
 | Global indices (fallback) | Stooq daily CSV | Yahoo na aape tyare: S&P 500, Dow, FTSE, DAX, CAC, Nikkei, Hang Seng, Shanghai, KOSPI, STI (Nasdaq Composite ane ASX 200 nu fallback nathi); daily close |
 | Currencies (fallback) | ECB via Frankfurter (api.frankfurter.dev) | Yahoo na aape tyare; daily reference rate, "Last close" tarike dekhay; AED = USD peg 3.6725 |
-| Indian gold/silver | COMEX × USD/INR × (1 + duty%) | Indicative; GST/making vagar. `INDIA_BULLION_PREMIUM_PCT` |
+| Indian gold/silver (level) | IBJA rates (ibjarates.com, 24K / silver 999, GST vagar) | Published AM/PM; scraped (page format badlay to `/api/diag` ma error dekhay). Live movement spot gold × USD/INR thi; IBJA na male to duty-parity |
+| Indian gold/silver (fallback) | COMEX × USD/INR × (1 + duty%) | Indicative; GST/making vagar. `INDIA_BULLION_PREMIUM_PCT` |
 | Mutual fund NAV | AMFI NAVAll.txt (+ mfapi.in history) | Daily NAV, bazar band thaya pachhi; live nathi |
 | News | ET, Moneycontrol, Mint, Business Standard, RBI, Fed RSS | Sirf headline + link |
 | Calendar | Faireconomy weekly JSON | Global events; Indian releases nathi |

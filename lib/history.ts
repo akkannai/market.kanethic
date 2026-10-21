@@ -6,6 +6,7 @@ import { downsample } from './mfmath.ts';
 import { RANGES, getHistory, yahooCooldown, type HistoryPoint, type RangeKey } from './yahoo.ts';
 import { goldInrPer10g, silverInrPerKg } from './bullion.ts';
 import { getTicks } from './ticks.ts';
+import { getCalibration } from './ibja.ts';
 
 const DAY = 86400_000;
 const TIMEOUT = () => Number(process.env.UPSTREAM_TIMEOUT_MS) || 8000;
@@ -151,7 +152,8 @@ export async function getInstrumentHistory(inst: Instrument, range: RangeKey): P
       const [b, fx] = await Promise.all([chain(spotInst, range).catch(() => chain(futInst, range)), chain(byId.get('usdinr') as Instrument, range)]);
       const premium = Number(process.env.INDIA_BULLION_PREMIUM_PCT ?? 6);
       const conv0 = gold ? goldInrPer10g : silverInrPerKg;
-      const conv = (a: number, b: number, c: number) => conv0(a, b, c) * gstK;
+      const kCal = getCalibration(gold ? 'gold' : 'silver');
+      const conv = (a: number, b: number, c: number) => (kCal ? conv0(a, b, 0) * kCal : conv0(a, b, c)) * gstK;
       let j = 0;
       const out: HistoryPoint[] = [];
       for (const [t, v] of b.points) {

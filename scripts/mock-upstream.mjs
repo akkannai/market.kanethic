@@ -40,6 +40,7 @@ const mfapi = (code) => {
 };
 globalThis.fetch = async (input, init) => {
   const url = new URL(typeof input === 'string' ? input : input.url ?? String(input));
+  if (url.hostname.includes('ibjarates.com')) return process.env.MOCK_IBJA_FAIL ? new Response('blocked', { status: 403 }) : new Response('<html><table><tr><td>Gold 999</td><td>1,11,900</td><td>1,12,000</td></tr><tr><td>Gold 995</td><td>1,11,500</td></tr><tr><td>Silver 999</td><td>1,40,100</td><td>1,40,500</td></tr></table></html>', { status: 200 });
   if (url.hostname.includes('frankfurter') && /\/v1\/\d{4}-\d{2}-\d{2}\.\./.test(url.pathname)) {
     const from = Date.parse(url.pathname.match(/(\d{4}-\d{2}-\d{2})\.\./)[1]); const rates = {}; const syms = (url.searchParams.get('symbols') || '').split(',');
     for (let t = Math.max(from, Date.UTC(2009, 0, 1)); t < Date.now(); t += 86400e3) { const dt = new Date(t); if (dt.getUTCDay() % 6 === 0) continue; const r = {}; syms.forEach((c, i) => { r[c] = c === 'INR' ? 45 + (t - Date.UTC(2009, 0, 1)) / 86400e3 * 0.0075 : 0.9 + i * 0.1; }); rates[dt.toISOString().slice(0, 10)] = r; }

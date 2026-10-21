@@ -1,4 +1,5 @@
 import { cached } from '@/lib/cache';
+import { getIbja } from '@/lib/ibja';
 import { fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from '@/lib/providers';
 
 export const dynamic = 'force-dynamic';
@@ -44,6 +45,11 @@ async function probeProvider(name: string, fn: () => Promise<Batch>) {
 
 export async function GET() {
   const { value, at } = await cached('diag', 60_000, async () => Promise.all([
+    (async () => {
+      const t0 = Date.now();
+      try { const r = await getIbja(); return { name: 'IBJA rates (gold/silver benchmark)', ok: true, status: 200, ms: Date.now() - t0, sample: `gold 999=${r.gold ?? 'n/a'}, silver 999=${r.silver ?? 'n/a'}` }; }
+      catch (e) { return { name: 'IBJA rates (gold/silver benchmark)', ok: false, status: 0, ms: Date.now() - t0, sample: e instanceof Error ? e.message : String(e) }; }
+    })(),
     probeProvider('NSE India (Indian indices)', fetchNse),
     probeProvider('CNBC (global indices/commodities)', fetchCnbc),
     probeProvider('Yahoo batch quote (cookie+crumb)', fetchYahooBatch),
