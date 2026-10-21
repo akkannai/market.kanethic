@@ -150,7 +150,9 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
   const fxr = raws.get('usdinr');
   for (const inst of catalog.filter((i) => i.derived)) {
     // Spot bhav preferred (Indian bhav spot par chale che); spot na hoy ke futures thi >3% dur hoy to futures
-    const isGold = inst.derived === 'gold-in';
+    const isGold = inst.derived!.startsWith('gold');
+    const gstPct = inst.derived!.endsWith('-gst') ? Number(process.env.INDIA_GST_PCT ?? 3) : 0;
+    const gstK = 1 + (Number.isFinite(gstPct) ? gstPct : 0) / 100;
     const spot = raws.get(isGold ? 'goldspot' : 'silverspot');
     const fut = raws.get(isGold ? 'gold' : 'silver');
     const spotOk = spot && (!fut || Math.abs(spot.price / fut.price - 1) < 0.03);
@@ -160,7 +162,8 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
       failed.push(inst.id);
       continue;
     }
-    const conv = inst.derived === 'gold-in' ? goldInrPer10g : silverInrPerKg;
+    const conv0 = isGold ? goldInrPer10g : silverInrPerKg;
+    const conv = (a: number, b: number, c: number) => conv0(a, b, c) * gstK;
     const price = conv(base.price, fxr.price, premium);
     const prev = base.prev !== null && fxr.prev !== null ? conv(base.prev, fxr.prev, premium) : null;
     const k = price / base.price;
@@ -175,7 +178,7 @@ export async function getAllQuotes(): Promise<{ quotes: Record<string, Quote>; f
         time: Math.min(base.time, fxr.time),
         spark: base.spark.map((v) => v * k),
       },
-      `Derived: ${baseLabel} $${base.price.toFixed(2)}/oz × USD/INR ${fxr.price.toFixed(2)} ÷ 31.1035 × ${isGold ? '10 g' : '1 kg'} + ${premium}% duty`,
+      `Derived: ${baseLabel} $${base.price.toFixed(2)}/oz × USD/INR ${fxr.price.toFixed(2)} ÷ 31.1035 × ${isGold ? '10 g' : '1 kg'} + ${premium}% duty${gstK > 1 ? ` + ${gstPct}% GST` : ''}`,
     );
   }
   recordTicks(quotes);
