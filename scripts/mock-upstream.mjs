@@ -21,22 +21,21 @@ function chart(symbol, range, interval) {
 }
 const rss = (name) => `<?xml version="1.0"?><rss><channel>${Array.from({ length: 8 }, (_, i) => `<item><title><![CDATA[${name}: Sample headline ${i + 1} &amp; markets]]></title><link>https://example.com/${name.replace(/\W/g, '')}/${i}</link><pubDate>${new Date(Date.now() - (i * 17 + hash(name) % 30) * 60000).toUTCString()}</pubDate><description>&lt;p&gt;Mock summary text for ${name}.&lt;/p&gt;</description></item>`).join('')}</channel></rss>`;
 const json = (o) => new Response(JSON.stringify(o), { status: 200, headers: { 'content-type': 'application/json' } });
-const today = () => new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).replace(/ /g, '-');
-const amfi = () => `Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date
-
-Open Ended Schemes(Equity Scheme - Flexi Cap Fund)
-
-Mock Mutual Fund
-
-100001;INF1;-;Mock Flexi Cap Fund - Direct Plan - Growth;245.6789;${today()}
-100002;INF2;-;Mock Flexi Cap Fund - Regular Plan - Growth;221.1234;${today()}
-100003;INF3;-;Mock Flexi Cap Fund - Regular Plan - IDCW;45.5;${today()}
-${Array.from({ length: 120 }, (_, i) => `1${String(i + 10).padStart(5, '0')};INFX;-;Mock Filler Fund ${i} - Regular Plan - Growth;${(10 + i).toFixed(4)};${today()}`).join('\n')}
-`;
+// ---- mock AMFI NAVAll + mfapi (consistent: mfapi history ends at the AMFI NAV)
+const AMCS = ['Alpha Mutual Fund', 'Beta Mutual Fund', 'Gamma Mutual Fund', 'Delta Mutual Fund', 'Omega Mutual Fund'];
+const CATS = ['Equity Scheme - Large Cap Fund', 'Equity Scheme - Mid Cap Fund', 'Equity Scheme - Flexi Cap Fund', 'Equity Scheme - ELSS', 'Debt Scheme - Liquid Fund', 'Other Scheme - Index Funds'];
+const VARIANTS = [['Regular Plan', 'Growth'], ['Regular Plan', 'IDCW'], ['Direct Plan', 'Growth'], ['Direct Plan', 'IDCW']];
+const lastWeekday = () => { const d = new Date(Date.now() + 5.5 * 3600e3); while ([0, 6].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() - 1); return d; };
+const ddMonYyyy = (d) => `${String(d.getUTCDate()).padStart(2, '0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]}-${d.getUTCFullYear()}`;
+const schemes = []; { let code = 120000; for (const cat of CATS) for (const amc of AMCS) for (const [plan, opt] of VARIANTS) { code++; const short = cat.split(' - ')[1].replace(' Fund', ''); schemes.push({ code, amc, cat, name: `${amc.replace(' Mutual Fund', '')} ${short} Fund - ${plan} - ${opt === 'IDCW' ? 'IDCW' : 'Growth'}`, nav: 10 + (hash(String(code)) % 4000) / 10 }); } }
+const amfi = () => { let out = 'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\n'; const date = ddMonYyyy(lastWeekday());
+  for (const cat of CATS) { out += `\nOpen Ended Schemes(${cat})\n`; for (const amc of AMCS) { out += `\n${amc}\n\n`; for (const s of schemes.filter((x) => x.cat === cat && x.amc === amc)) out += `${s.code};INF${String(s.code).padStart(9, '0')}${s.code % 10};-;${s.name};${s.nav.toFixed(4)};${date}\n`; } }
+  return out; };
 const mfapi = (code) => {
-  const data = []; const end = Date.now();
-  for (let d = 0; d < 365 * 6; d++) { const dt = new Date(end - d * 86400e3); if (dt.getUTCDay() % 6 === 0) continue; data.push({ date: `${String(dt.getUTCDate()).padStart(2, '0')}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${dt.getUTCFullYear()}`, nav: (245 * Math.pow(1.13, -d / 365) * (1 + 0.02 * Math.sin(d / 20))).toFixed(4) }); }
-  return { meta: { scheme_name: 'Mock Flexi Cap Fund - Direct Plan - Growth', fund_house: 'Mock Mutual Fund', scheme_category: 'Equity Scheme - Flexi Cap Fund' }, data };
+  const s = schemes.find((x) => x.code === Number(code)); if (!s) return { meta: {}, data: [] };
+  const data = []; const end = lastWeekday(); let seed = (hash(String(code)) * 2654435761) >>> 0; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5); for (let i = 0; i < 7; i++) rnd();
+  let v = s.nav; for (let d = 0; d <= 365 * 6; d++) { const t = new Date(end.getTime() - d * 86400e3); if (t.getUTCDay() % 6 === 0) continue; data.push({ date: `${String(t.getUTCDate()).padStart(2, '0')}-${String(t.getUTCMonth() + 1).padStart(2, '0')}-${t.getUTCFullYear()}`, nav: v.toFixed(4) }); v = v / (1 + 0.0004 + rnd() * 0.012); }
+  return { meta: { scheme_name: s.name, fund_house: s.amc, scheme_category: s.cat }, data };
 };
 globalThis.fetch = async (input, init) => {
   const url = new URL(typeof input === 'string' ? input : input.url ?? String(input));

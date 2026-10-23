@@ -6,17 +6,25 @@ import { useT } from './lang';
 export function TalkToUs({ message, compact = false }: { message?: string; compact?: boolean }) {
   const t = useT();
   const href = contactHref(message ?? 'Hello Kanethic, I would like to know more about investing in mutual funds.');
-  if (!href) return null;
   return (
     <a className={`cta-btn ${compact ? 'compact' : ''}`} href={href} target="_blank" rel="noopener noreferrer">
-      <MessageCircle size={16} aria-hidden /> {t('Talk to us')}
+      <MessageCircle size={16} aria-hidden /> {t('Talk to Kanethic')}
+    </a>
+  );
+}
+
+export function FloatingCta() {
+  const t = useT();
+  const href = contactHref('Hello Kanethic, I would like to know more about mutual fund investing.');
+  return (
+    <a className="cta-float" href={href} target="_blank" rel="noopener noreferrer" aria-label={t('Talk to Kanethic on WhatsApp')}>
+      <MessageCircle size={18} aria-hidden /> <span>{t('Talk to Kanethic')}</span>
     </a>
   );
 }
 
 export function CtaBand({ message }: { message?: string }) {
   const t = useT();
-  if (!contactHref('x')) return null;
   return (
     <section className="cta-band">
       <div>

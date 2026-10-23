@@ -3,24 +3,30 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20.9" },
+  "engines": {
+    "node": ">=20.9"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
+    "test:db": "DB_TEST_HOST=${DB_TEST_HOST:-127.0.0.1} node --experimental-strip-types --test tests/mf-db.test.ts",
     "dev:mock": "NODE_OPTIONS='--import ./scripts/mock-upstream.mjs' next dev"
   },
   "dependencies": {
     "lucide-react": "^1.31.0",
+    "mysql2": "^3.24.6",
     "next": "16.4.2",
+    "nodemailer": "^10.2.1",
     "react": "19.3.1",
     "react-dom": "19.3.1",
     "recharts": "^3.8.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.0",
+    "@types/nodemailer": "^8.0.2",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "typescript": "^5.9.3"

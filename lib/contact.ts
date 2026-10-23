@@ -1,8 +1,8 @@
-// "Talk to us" button: .env ma NEXT_PUBLIC_WHATSAPP (country code sathe digits, jem 919XXXXXXXXX) ke NEXT_PUBLIC_CONTACT_URL set karo.
-// Beyma thi koi na hoy to button batavvama aavto nathi. Build time par inline thay che.
-export function contactHref(message: string): string | null {
-  const wa = (process.env.NEXT_PUBLIC_WHATSAPP || '').replace(/\D/g, '');
-  if (wa.length >= 10) return `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
+// "Talk to Kanethic" -> WhatsApp 9998170093 (default). Override: NEXT_PUBLIC_WHATSAPP (country code sathe digits) ke NEXT_PUBLIC_CONTACT_URL.
+const DEFAULT_WHATSAPP = '919998170093';
+export function contactHref(message: string): string {
   const url = process.env.NEXT_PUBLIC_CONTACT_URL;
-  return url && /^https?:\/\//.test(url) ? url : null;
+  if (url && /^https?:\/\//.test(url)) return url;
+  const wa = (process.env.NEXT_PUBLIC_WHATSAPP || DEFAULT_WHATSAPP).replace(/\D/g, '');
+  return `https://wa.me/${wa}?text=${encodeURIComponent(message)}`;
 }

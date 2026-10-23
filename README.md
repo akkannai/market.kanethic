@@ -14,6 +14,10 @@ browser dar 30 sec e refresh kare che (tab dekhato hoy tyare j).
 Local: `npm install && npm run build && npm start` (http://localhost:3000).
 Offline UI test (fake data, sirf dev): `npm run dev:mock`.
 
+## Mutual Fund Intelligence (MySQL + cron)
+
+NAV Today, Categories, Scheme, Compare ane Admin — **`docs/MF-INTELLIGENCE.md`** ma schema, cron lines (IST/UTC), env ane deploy steps che.
+
 ## Features (v1.1)
 
 - **English / ગુજરાતી** toggle (header ma EN | ગુ). Navu text: `t('English')` vapro ane `lib/i18n.ts` ma Gujarati umero; translation na hoy to English dekhay.

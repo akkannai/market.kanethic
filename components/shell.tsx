@@ -8,7 +8,7 @@ import { istTime, nf, pctText } from '@/lib/format';
 import { dir } from './ui';
 import { useAlerts, useQuotes } from './providers';
 import { useLang, useT } from './lang';
-import { TalkToUs } from './cta';
+import { FloatingCta, TalkToUs } from './cta';
 
 function ThemeToggle() {
   const t = useT();
@@ -54,7 +54,7 @@ function SearchBox() {
     if (q.length < 3) { setFunds([]); return; }
     const ctl = new AbortController();
     const timer = setTimeout(() => {
-      fetch(`/api/mf/search?q=${encodeURIComponent(q)}&option=growth`, { signal: ctl.signal })
+      fetch(`/api/mf/search?q=${encodeURIComponent(q)}`, { signal: ctl.signal })
         .then((r) => (r.ok ? r.json() : Promise.reject()))
         .then((j) => setFunds((j.results ?? []).slice(0, 5)))
         .catch(() => {});
@@ -147,7 +147,7 @@ export function Shell({ children }: { children: ReactNode }) {
   const t = useT();
   const path = usePathname();
   const seg = path.split('/')[1];
-  const active = path === '/' ? 'overview' : seg === 'instrument' ? '' : seg === 'fund' ? 'mutual-funds' : seg;
+  const active = path === '/' ? 'overview' : seg === 'instrument' ? '' : seg === 'fund' || seg === 'compare' ? 'mutual-funds' : seg;
   return (
     <>
       <header className="topbar">
@@ -169,15 +169,14 @@ export function Shell({ children }: { children: ReactNode }) {
       </header>
       <main className="page">{children}</main>
       <AlertToasts />
+      {seg !== 'admin' && <FloatingCta />}
       <footer className="foot">
         <img src="/logo.png" alt="Kanethic — Invest With Discipline" className="foot-logo" width={120} height={120} />
         <div>
-          <b>Kanethic Private Limited</b> · Invest With Discipline. · AMFI-registered Mutual Fund Distributor | ARN-254247 · <Link href="/sources" className="more">{t('Data & sources')}</Link>
+          <b>Kanethic Private Limited</b> · Invest With Discipline. · AMFI Registered Mutual Fund Distributor | ARN-254247 · <Link href="/sources" className="more">{t('Data & sources')}</Link>
         </div>
-        <p>
-          {t('Market data is sourced from third-party public feeds and may be delayed by up to 15–20 minutes. It is provided for information only and is not investment advice or an offer to buy or sell any security.')}{' '}
-          {t('Mutual fund investments are subject to market risks; read all scheme related documents carefully. Past performance may or may not be sustained in the future.')}
-        </p>
+        <p><b>{t('Mutual fund investments are subject to market risks, read all scheme related documents carefully.')}</b> {t('For information only, not investment advice.')}</p>
+        <p>{t('Market data is sourced from third-party public feeds and may be delayed by up to 15–20 minutes. It is provided for information only and is not an offer to buy or sell any security. Past performance may or may not be sustained in the future.')}</p>
       </footer>
     </>
   );

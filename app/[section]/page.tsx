@@ -2,12 +2,11 @@ import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { sections } from '@/lib/instruments';
 import { CalculatorsPage } from '@/components/calculators';
-import { MutualFundsPage } from '@/components/funds';
 import { CalendarPage, CommoditiesPage, CurrenciesPage, GlobalPage, IndiaPage, NewsPage, SourcesPage, WatchlistPage } from '@/components/sections';
 
 const pages: Record<string, () => React.ReactNode> = {
   india: IndiaPage, global: GlobalPage, currencies: CurrenciesPage, commodities: CommoditiesPage,
-  'mutual-funds': MutualFundsPage, calculators: CalculatorsPage, news: NewsPage, calendar: CalendarPage, watchlist: WatchlistPage, sources: SourcesPage,
+  calculators: CalculatorsPage, news: NewsPage, calendar: CalendarPage, watchlist: WatchlistPage, sources: SourcesPage,
 };
 
 export const dynamicParams = false;
