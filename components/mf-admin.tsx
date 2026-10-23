@@ -5,6 +5,7 @@ import { PageHead } from './sections';
 import { DataBar, dateText, istStamp, nfx, type MfStatus } from './mf-ui';
 
 type Overview = {
+  counts: { schemes: number; active: number; withNav: number; history: number; missingLatest: number };
   status: MfStatus; config: { mail: boolean; alertTo: string; cronSecret: boolean; tz: string };
   lastByJob: { job: string; status: string; started_at: string; finished_at: string | null; message: string }[];
   runs: { id: number; job: string; slot: string | null; trigger_by: string; started_at: string; finished_at: string | null; status: string; message: string }[];
@@ -64,16 +65,17 @@ export function AdminPage() {
       {d && (<>
         <DataBar status={d.status} />
         <div className="kpis admin-kpis">
-          <div className="kpi"><span>Schemes with NAV</span><strong className="num">{d.status.schemes.toLocaleString('en-IN')}</strong></div>
+          <div className="kpi"><span>Schemes in DB / with latest NAV / NAV rows</span><strong className="num">{d.counts.schemes.toLocaleString('en-IN')} / {d.counts.withNav.toLocaleString('en-IN')} / {d.counts.history.toLocaleString('en-IN')}</strong>
+            {d.counts.missingLatest > 0 && <span className="down small block">{d.counts.missingLatest.toLocaleString('en-IN')} schemes have history but no latest row — press “Rebuild latest”.</span>}</div>
           <div className="kpi"><span>Backfill ({bf?.done}/{bf?.total} done · {bf?.na} no history · {bf?.failed} failed · {bf?.pending} pending)</span><strong className="num">{pct}%</strong></div>
           <div className="kpi"><span>Failure email → {d.config.alertTo}</span><strong className={d.config.mail ? 'up' : 'down'}>{d.config.mail ? 'SMTP configured' : 'SMTP NOT configured'}</strong></div>
         </div>
         {!d.config.cronSecret && <p className="note down">CRON_SECRET is missing or shorter than 16 characters — cron URLs will be rejected.</p>}
         <Panel title="Jobs" sub={`Server timezone: ${d.config.tz}. All schedules are defined in IST (see README for cron lines).`}>
           <div className="table-wrap"><table className="tbl"><thead><tr><th>Job</th><th>Last run</th><th>Status</th><th>Message</th><th /></tr></thead><tbody>
-            {['nav-fetch', 'backfill'].map((job) => { const l = d.lastByJob.find((x) => x.job === job); return (
+            {['nav-fetch', 'backfill', 'recompute'].map((job) => { const l = d.lastByJob.find((x) => x.job === job); return (
               <tr key={job}><td><b>{job}</b></td><td>{istStamp(l?.started_at ?? null)}</td><td><span className={`badge ${l?.status === 'failed' ? 'stale' : l?.status === 'ok' ? 'live' : 'closed'}`}>{l?.status ?? 'never'}</span></td><td className="muted small">{l?.message ?? '—'}</td>
-                <td className="r"><button className="btn" onClick={() => act('/api/admin/run', { job }, `${job} started — refresh in a few seconds`)}>Run now</button></td></tr>); })}
+                <td className="r"><button className="btn" onClick={() => act('/api/admin/run', { job }, `${job} started — refresh in a few seconds`)}>{job === 'recompute' ? 'Rebuild latest' : 'Run now'}</button></td></tr>); })}
           </tbody></table></div>
           <div className="pad-x"><button className="btn" onClick={async () => { const r = await post('/api/admin/test-email', {}); setMsg(r.json.sent ? `Test email sent to ${r.json.to}` : `Email not sent: ${r.json.reason ?? r.json.error}`); }}>Send test email</button></div>
         </Panel>

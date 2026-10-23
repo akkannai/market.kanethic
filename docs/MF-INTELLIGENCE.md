@@ -28,6 +28,7 @@ Hostinger cron kyarek server time (UTC) vapre che. hPanel ma timezone jovo; jo U
 | 07:00 | 01:30 | nav-fetch (retry) |
 | 10:00 | 04:30 | nav-fetch (last retry) |
 | every 30 min (until done) | — | backfill |
+| (manual, jarur pade tyare) | — | recompute ("Rebuild latest" in /admin) |
 
 ```
 30 17 * * *  curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://market.kanethic.com/api/cron/nav-fetch?slot=23:00&wait=1"

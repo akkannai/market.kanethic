@@ -143,3 +143,14 @@ test('alert: failed NAV fetch sends an email to ALERT_EMAIL (SMTP dialogue)', { 
   server.close();
   for (const k of ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS', 'MAIL_FROM']) delete process.env[k];
 });
+
+test('db: recompute rebuilds missing nav_latest rows from history', { skip }, async () => {
+  const [before] = await dbm.q<any>('SELECT COUNT(*) n FROM nav_latest');
+  await dbm.exec('DELETE FROM nav_latest WHERE scheme_code IN (100001, 200001)');
+  const r = await jobs.runRecompute({ trigger: 'manual', onlyMissing: true });
+  assert.equal(r.status, 'ok');
+  const [after] = await dbm.q<any>('SELECT COUNT(*) n FROM nav_latest');
+  assert.equal(after.n, before.n);
+  const [n] = await dbm.q<any>('SELECT * FROM nav_latest WHERE scheme_code=100001');
+  assert.ok(n.prev_date && n.chg_pct !== null);
+});

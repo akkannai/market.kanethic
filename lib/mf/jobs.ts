@@ -281,3 +281,32 @@ export async function runBackfill(o: { trigger?: 'cron' | 'manual'; maxMs?: numb
     await release('backfill').catch(() => {});
   }
 }
+
+// ------------------------------------------------------------------ rebuild nav_latest / returns for every scheme that has history
+export async function runRecompute(o: { trigger?: 'cron' | 'manual'; onlyMissing?: boolean } = {}): Promise<JobResult> {
+  const runId = await startRun('recompute', null, o.trigger ?? 'manual');
+  if (!(await acquire('recompute', 30 * 60_000))) {
+    const res: JobResult = { status: 'skipped', message: 'Another recompute is running' };
+    await finishRun(runId, res);
+    return res;
+  }
+  try {
+    const codes = (await q<{ scheme_code: number }>(
+      o.onlyMissing
+        ? 'SELECT DISTINCT h.scheme_code FROM nav_history h LEFT JOIN nav_latest n ON n.scheme_code=h.scheme_code WHERE n.scheme_code IS NULL'
+        : 'SELECT DISTINCT scheme_code FROM nav_history')).map((r) => r.scheme_code);
+    await recomputeLatest(codes);
+    const cats = await computeCategorySummary();
+    const [{ d: asOf }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_latest');
+    const [c] = await q<{ n: number }>('SELECT COUNT(*) n FROM nav_latest');
+    const res: JobResult = { status: 'ok', message: `Recomputed ${codes.length} schemes; ${c.n} now have latest NAV (as of ${asOf}); ${cats} categories`, stats: { recomputed: codes.length, withLatest: c.n, categories: cats } };
+    await finishRun(runId, res);
+    return res;
+  } catch (e) {
+    const res: JobResult = { status: 'failed', message: e instanceof Error ? e.message : String(e) };
+    await finishRun(runId, res).catch(() => {});
+    return res;
+  } finally {
+    await release('recompute').catch(() => {});
+  }
+}

@@ -1,5 +1,5 @@
 import { safeEqual } from '@/lib/mf/auth';
-import { runBackfill, runNavFetch } from '@/lib/mf/jobs';
+import { runBackfill, runNavFetch, runRecompute } from '@/lib/mf/jobs';
 import type { Slot } from '@/lib/mf/calc';
 import { DbNotConfigured } from '@/lib/mf/db';
 
@@ -18,6 +18,7 @@ export async function POST(req: Request, { params }: { params: Promise<{ job: st
   let run: () => Promise<unknown>;
   if (job === 'nav-fetch') run = () => runNavFetch({ slot, trigger: 'cron' });
   else if (job === 'backfill') run = () => runBackfill({ trigger: 'cron' });
+  else if (job === 'recompute') run = () => runRecompute({ trigger: 'cron' });
   else return Response.json({ error: 'Unknown job' }, { status: 404 });
   try {
     if (sp.get('wait') === '1') return Response.json(await run());
