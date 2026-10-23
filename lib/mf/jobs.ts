@@ -1,5 +1,5 @@
 import { bulk, exec, q, utcNow } from './db.ts';
-import { classifyOption, classifyPlan, parseNavAllFull, type ParsedRow } from './classify.ts';
+import { parseNavAllFull, resolveOption, resolvePlan, type ParsedRow } from './classify.ts';
 import { computeReturns, expectedNavDate, istDate, median, mean, oneDay, SLOTS, validateChange, pctChange, type NavRow, type Slot } from './calc.ts';
 import { parseMfapi } from '../mfmath.ts';
 import { alert } from './mail.ts';
@@ -144,7 +144,7 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
     const schemeRows: any[][] = [], hist: any[][] = [], reviews: any[][] = [], accepted: number[] = [], gaps: number[] = [], fresh: number[] = [];
     let unchanged = 0;
     for (const r of byCode.values()) {
-      const plan = classifyPlan(r.name), opt = classifyOption(r.name);
+      const plan = resolvePlan(r.planCol, r.name), opt = resolveOption(r.optCol, r.name);
       schemeRows.push([r.code, r.isinA, r.isinB, r.name, r.amc, r.schemeType, r.main, r.sub, r.category, r.categorySlug, plan, opt, today, today]);
       if (!known.has(r.code)) fresh.push(r.code);
       const last = latest.get(r.code);
@@ -163,7 +163,7 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
        ON DUPLICATE KEY UPDATE isin_a=VALUES(isin_a), isin_b=VALUES(isin_b), name=VALUES(name), amc=VALUES(amc), scheme_type=VALUES(scheme_type), main_category=VALUES(main_category),
          sub_category=VALUES(sub_category), category=VALUES(category), category_slug=VALUES(category_slug), plan=VALUES(plan), opt=VALUES(opt), last_seen=VALUES(last_seen), active=1`, schemeRows, 500);
     if (fresh.length) {
-      const seed = fresh.map((c) => { const r = byCode.get(c)!; return [c, priorityOf(classifyPlan(r.name), classifyOption(r.name))]; });
+      const seed = fresh.map((c) => { const r = byCode.get(c)!; return [c, priorityOf(resolvePlan(r.planCol, r.name), resolveOption(r.optCol, r.name))]; });
       await bulk("INSERT IGNORE INTO backfill_state (scheme_code, priority) VALUES ?", seed, 1000);
     }
     await bulk('INSERT IGNORE INTO nav_history (scheme_code, nav_date, nav, source) VALUES ?', hist, 1000);

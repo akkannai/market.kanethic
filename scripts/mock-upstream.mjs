@@ -28,8 +28,8 @@ const VARIANTS = [['Regular Plan', 'Growth'], ['Regular Plan', 'IDCW'], ['Direct
 const lastWeekday = () => { const d = new Date(Date.now() + 5.5 * 3600e3); while ([0, 6].includes(d.getUTCDay())) d.setUTCDate(d.getUTCDate() - 1); return d; };
 const ddMonYyyy = (d) => `${String(d.getUTCDate()).padStart(2, '0')}-${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getUTCMonth()]}-${d.getUTCFullYear()}`;
 const schemes = []; { let code = 120000; for (const cat of CATS) for (const amc of AMCS) for (const [plan, opt] of VARIANTS) { code++; const short = cat.split(' - ')[1].replace(' Fund', ''); schemes.push({ code, amc, cat, name: `${amc.replace(' Mutual Fund', '')} ${short} Fund - ${plan} - ${opt === 'IDCW' ? 'IDCW' : 'Growth'}`, nav: 10 + (hash(String(code)) % 4000) / 10 }); } }
-const amfi = () => { let out = 'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date\n'; const date = ddMonYyyy(lastWeekday());
-  for (const cat of CATS) { out += `\nOpen Ended Schemes(${cat})\n`; for (const amc of AMCS) { out += `\n${amc}\n\n`; for (const s of schemes.filter((x) => x.cat === cat && x.amc === amc)) out += `${s.code};INF${String(s.code).padStart(9, '0')}${s.code % 10};-;${s.name};${s.nav.toFixed(4)};${date}\n`; } }
+const amfi = () => { let out = 'Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date\r\n'; const date = ddMonYyyy(lastWeekday());
+  for (const cat of CATS) { out += `\nOpen Ended Schemes(${cat})\n`; for (const amc of AMCS) { out += `\n${amc}\n\n`; for (const s of schemes.filter((x) => x.cat === cat && x.amc === amc)) out += `${s.code};INF${String(s.code).padStart(9, '0')}${s.code % 10};-;${s.name};${s.name.includes('Direct') ? 'Direct' : 'Regular'};${s.name.endsWith('IDCW') ? 'IDCW Payout' : 'Growth'};${s.nav.toFixed(4)};${date}\r\n`; } }
   return out; };
 const mfapi = (code) => {
   const s = schemes.find((x) => x.code === Number(code)); if (!s) return { meta: {}, data: [] };

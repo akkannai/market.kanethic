@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { amfiDate, classifyOption, classifyPlan, parseCategoryHeader, parseNavAllFull, slugify } from '../lib/mf/classify.ts';
+import { amfiDate, classifyOption, classifyPlan, parseCategoryHeader, parseHeader, parseNavAllFull, resolveOption, resolvePlan, slugify } from '../lib/mf/classify.ts';
 import { computeReturns, expectedNavDate, istDate, median, navAtOrBefore, oneDay, subtractMonths, summarize, validateChange, isStale } from '../lib/mf/calc.ts';
 
 const FILE = `Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date
@@ -106,4 +106,17 @@ test('AMFI parser tolerates other date formats and missing category header', () 
   const { rows } = parseNavAllFull('100001;INF000A01011;-;Alpha Fund - Regular Plan - Growth;12.5;17-10-2025\n');
   assert.equal(rows.length, 1); assert.equal(rows[0].category, 'Uncategorised'); assert.equal(rows[0].date, '2025-10-17');
   assert.equal(parseNavAllFull('<html><body>Access Denied</body></html>').rows.length, 0);
+});
+
+// Navo AMFI layout (Plan + Option columns) -- real response nu shuruat jevu
+const NEW_FILE = `Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Plan;Option;Net Asset Value;Date\r\n \r\nOpen Ended Schemes(Children’s Fund - Childrens' Fund)\r\n\r\nAlpha Mutual Fund\r\n\r\n100001;INF000A01011;-;Alpha Children Fund - Regular Plan - Growth;Regular;Growth;25.1234;17-Oct-2025\r\n100002;INF000A01029;INF000A01037;Alpha Children Fund - Direct Plan - IDCW;Direct;IDCW Payout;30;17-Oct-2025\r\n100003;-;-;Alpha Children Fund - Regular;;;N.A.;17-Oct-2025\r\n100004;-;-;Alpha Odd Fund - Regular;Regular;Growth;10;17-Oct-2025\r\n`;
+test('AMFI new layout: header-driven columns (Plan/Option), IDs, plan/option resolved', () => {
+  const { rows, skipped } = parseNavAllFull(NEW_FILE);
+  assert.equal(rows.length, 3); assert.equal(skipped, 1); // N.A. NAV skipped
+  assert.equal(rows[0].nav, 25.1234); assert.equal(rows[0].date, '2025-10-17'); assert.equal(rows[0].isinA, 'INF000A01011');
+  assert.equal(rows[0].category, "Children’s Fund - Childrens' Fund"); assert.equal(rows[0].amc, 'Alpha Mutual Fund');
+  assert.equal(resolvePlan(rows[0].planCol, rows[0].name), 'Regular'); assert.equal(resolveOption(rows[0].optCol, rows[0].name), 'Growth');
+  assert.equal(resolvePlan(rows[1].planCol, rows[1].name), 'Direct'); assert.equal(resolveOption(rows[1].optCol, rows[1].name), 'IDCW'); assert.equal(rows[1].isinB, 'INF000A01037');
+  assert.equal(resolvePlan(rows[2].planCol, rows[2].name), 'Regular'); assert.equal(resolveOption(rows[2].optCol, rows[2].name), 'Growth');
+  assert.equal(parseHeader('Scheme Code;ISIN Div Payout/ ISIN Growth;ISIN Div Reinvestment;Scheme Name;Net Asset Value;Date')?.plan, -1); // juno layout pan chale
 });
