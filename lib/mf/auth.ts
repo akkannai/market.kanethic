@@ -5,13 +5,20 @@ const COOKIE = 'kmfi_admin';
 export const cookieName = COOKIE;
 const TTL_MS = 8 * 3600_000;
 const secret = () => process.env.SESSION_SECRET || '';
-export const adminConfigured = () => !!(process.env.ADMIN_USER && process.env.ADMIN_PASSWORD_HASH && secret().length >= 16);
+export const adminConfigured = () => !!(process.env.ADMIN_USER && (process.env.ADMIN_PASSWORD_HASH || (process.env.ADMIN_PASSWORD ?? '').length >= 12) && secret().length >= 16);
 
 export function hashPassword(pw: string): string {
   const salt = randomBytes(16).toString('hex');
   return `scrypt$${salt}$${scryptSync(pw, salt, 64).toString('hex')}`;
 }
 export function verifyPassword(pw: string, stored = process.env.ADMIN_PASSWORD_HASH || ''): boolean {
+  // Saral rasto: server env ma plain ADMIN_PASSWORD (12+ chars). Hash hoy to hash j vaparay.
+  if (!stored) {
+    const plain = process.env.ADMIN_PASSWORD ?? '';
+    if (plain.length < 12) return false;
+    const a = createHmac('sha256', 'cmp').update(pw).digest(), b = createHmac('sha256', 'cmp').update(plain).digest();
+    return timingSafeEqual(a, b);
+  }
   const [alg, salt, hash] = stored.split('$');
   if (alg !== 'scrypt' || !salt || !hash) return false;
   const a = scryptSync(pw, salt, 64), b = Buffer.from(hash, 'hex');

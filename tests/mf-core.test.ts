@@ -87,3 +87,15 @@ test('expected NAV date (IST): after 22:00 today; before = yesterday; weekend ->
   assert.equal(expectedNavDate(new Date('2025-10-18T18:00:00Z')), '2025-10-17'); // Sat 23:30 IST -> Fri
   assert.equal(expectedNavDate(new Date('2025-10-20T03:00:00Z')), '2025-10-17'); // Mon 08:30 IST -> Fri
 });
+
+import { adminConfigured, hashPassword, makeSession, verifyPassword, verifySession } from '../lib/mf/auth.ts';
+test('admin auth: hash, plain env password, session tamper/expiry', () => {
+  const h = hashPassword('correct-horse-battery');
+  assert.equal(verifyPassword('correct-horse-battery', h), true); assert.equal(verifyPassword('wrong', h), false);
+  delete process.env.ADMIN_PASSWORD_HASH; process.env.ADMIN_PASSWORD = 'plain-pass-123456'; process.env.ADMIN_USER = 'a'; process.env.SESSION_SECRET = 'x'.repeat(20);
+  assert.equal(adminConfigured(), true); assert.equal(verifyPassword('plain-pass-123456'), true); assert.equal(verifyPassword('plain-pass-1234567'), false);
+  process.env.ADMIN_PASSWORD = 'short'; assert.equal(verifyPassword('short'), false); assert.equal(adminConfigured(), false);
+  const t = makeSession('alpesh', 1000);
+  assert.equal(verifySession(t, 2000), 'alpesh'); assert.equal(verifySession(t, 1000 + 9 * 3600_000), null);
+  assert.equal(verifySession(t.slice(0, -2) + 'aa', 2000), null); assert.equal(verifySession(undefined), null);
+});
