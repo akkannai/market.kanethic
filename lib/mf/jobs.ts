@@ -97,7 +97,10 @@ export async function fetchAmfiText(): Promise<string> {
           signal: AbortSignal.timeout(60_000), cache: 'no-store',
         });
         if (!res.ok) throw new Error(`${new URL(url).host}: HTTP ${res.status}`);
-        return await res.text();
+        const body = await res.text();
+        // Parse na thay to kaaran dekhay e mate response no namuno (content-type, size, shuruat) saath ma
+        (globalThis as any).__amfiSample = `${new URL(url).host} HTTP ${res.status} ${res.headers.get('content-type') ?? '?'} ${body.length} bytes: ${JSON.stringify(body.slice(0, 160))}`;
+        return body;
       } catch (e) { last = e; }
     }
   }
@@ -128,7 +131,7 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
     await markStatus({ error: null, success: false });
     const text = o.text ?? (await fetchAmfiText());
     const { rows, skipped } = parseNavAllFull(text);
-    if (rows.length < MIN_ROWS()) throw new Error(`AMFI file looks incomplete: only ${rows.length} schemes parsed (min ${MIN_ROWS()})`);
+    if (rows.length < MIN_ROWS()) throw new Error(`AMFI file looks incomplete: only ${rows.length} schemes parsed (min ${MIN_ROWS()}; ${skipped} lines skipped). Response: ${(globalThis as any).__amfiSample ?? `${text.length} bytes ${JSON.stringify(text.slice(0, 160))}`}`);
 
     // Dedupe by scheme code (last wins)
     const byCode = new Map<number, ParsedRow>();

@@ -1,5 +1,7 @@
 import { cached } from '@/lib/cache';
 import { getIbja } from '@/lib/ibja';
+import { fetchAmfiText } from '@/lib/mf/jobs';
+import { parseNavAllFull } from '@/lib/mf/classify';
 import { fetchCnbc, fetchNse, fetchYahooBatch, type Batch } from '@/lib/providers';
 
 export const dynamic = 'force-dynamic';
@@ -10,7 +12,6 @@ const TESTS: [string, string][] = [
   ['Yahoo query2', 'https://query2.finance.yahoo.com/v8/finance/chart/USDINR%3DX?range=1d&interval=5m'],
   ['Stooq (fallback)', 'https://stooq.com/q/d/l/?s=%5Espx&i=d'],
   ['ECB / Frankfurter (FX fallback)', 'https://api.frankfurter.dev/v1/latest?base=USD&symbols=INR'],
-  ['AMFI NAVAll', 'https://www.amfiindia.com/spages/NAVAll.txt'],
   ['mfapi.in', 'https://api.mfapi.in/mf/search?q=flexi'],
   ['Economic Times RSS', 'https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms'],
   ['Economic calendar', 'https://nfs.faireconomy.media/ff_calendar_thisweek.json'],
@@ -49,6 +50,11 @@ export async function GET() {
       const t0 = Date.now();
       try { const r = await getIbja(); return { name: 'IBJA rates (gold/silver benchmark)', ok: true, status: 200, ms: Date.now() - t0, sample: `gold 999=${r.gold ?? 'n/a'}, silver 999=${r.silver ?? 'n/a'}` }; }
       catch (e) { return { name: 'IBJA rates (gold/silver benchmark)', ok: false, status: 0, ms: Date.now() - t0, sample: e instanceof Error ? e.message : String(e) }; }
+    })(),
+    (async () => {
+      const t0 = Date.now();
+      try { const text = await fetchAmfiText(); const { rows, skipped } = parseNavAllFull(text); return { name: 'AMFI NAVAll (fetch + parse)', ok: rows.length > 1000, status: 200, ms: Date.now() - t0, sample: `${rows.length} schemes parsed, ${skipped} skipped, ${text.length} bytes; newest date ${rows.map((r) => r.date).sort().at(-1) ?? 'n/a'}; starts: ${JSON.stringify(text.slice(0, 100))}` }; }
+      catch (e) { return { name: 'AMFI NAVAll (fetch + parse)', ok: false, status: 0, ms: Date.now() - t0, sample: e instanceof Error ? e.message : String(e) }; }
     })(),
     probeProvider('NSE India (Indian indices)', fetchNse),
     probeProvider('CNBC (global indices/commodities)', fetchCnbc),

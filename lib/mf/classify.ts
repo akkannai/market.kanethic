@@ -38,12 +38,16 @@ export type ParsedRow = {
 };
 
 const MONTHS: Record<string, string> = { jan: '01', feb: '02', mar: '03', apr: '04', may: '05', jun: '06', jul: '07', aug: '08', sep: '09', oct: '10', nov: '11', dec: '12' };
+const validIso = (iso: string) => new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso;
+/** 17-Oct-2025 | 17-10-2025 | 17/10/2025 | 2025-10-17 -> ISO */
 export function amfiDate(s: string): string | null {
-  const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{4})$/.exec(s.trim());
-  const mm = m && MONTHS[m[2].toLowerCase()];
-  if (!m || !mm) return null;
-  const iso = `${m[3]}-${mm}-${m[1].padStart(2, '0')}`;
-  return new Date(`${iso}T00:00:00Z`).toISOString().slice(0, 10) === iso ? iso : null;
+  const t = s.trim();
+  let m = /^(\d{1,2})[-\/ ]([A-Za-z]{3,9})[-\/ ,]+(\d{4})$/.exec(t);
+  if (m) { const mm = MONTHS[m[2].slice(0, 3).toLowerCase()]; if (!mm) return null; const iso = `${m[3]}-${mm}-${m[1].padStart(2, '0')}`; return validIso(iso) ? iso : null; }
+  m = /^(\d{1,2})[-\/](\d{1,2})[-\/](\d{4})$/.exec(t);
+  if (m) { const iso = `${m[3]}-${m[2].padStart(2, '0')}-${m[1].padStart(2, '0')}`; return validIso(iso) ? iso : null; }
+  m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(t);
+  return m && validIso(t) ? t : null;
 }
 
 export function parseNavAllFull(text: string): { rows: ParsedRow[]; skipped: number } {
@@ -51,7 +55,7 @@ export function parseNavAllFull(text: string): { rows: ParsedRow[]; skipped: num
   let skipped = 0;
   let cat: CategoryHeader | null = null;
   let amc = '';
-  for (const raw of text.split(/\r?\n/)) {
+  for (const raw of text.split(/\r\n|\n|\r/)) {
     const line = raw.trim();
     if (!line || /^Scheme Code/i.test(line)) continue;
     if (!line.includes(';')) {
@@ -63,11 +67,11 @@ export function parseNavAllFull(text: string): { rows: ParsedRow[]; skipped: num
     if (f.length < 6 || !/^\d+$/.test(f[0].trim())) { skipped++; continue; }
     const nav = Number(f[4]);
     const date = amfiDate(f[5]);
-    if (!Number.isFinite(nav) || nav <= 0 || !date || !cat) { skipped++; continue; } // "N.A." / bad rows
+    if (!Number.isFinite(nav) || nav <= 0 || !date) { skipped++; continue; } // "N.A." / bad rows
     const isin = (v: string) => (/^[A-Z]{2}[A-Z0-9]{9}\d$/.test(v.trim()) ? v.trim() : null);
     rows.push({
       code: Number(f[0]), isinA: isin(f[1]), isinB: isin(f[2]), name: f[3].trim(), nav, date, amc,
-      category: cat.category, categorySlug: slugify(cat.category), main: cat.main, sub: cat.sub, schemeType: cat.schemeType,
+      category: cat?.category ?? 'Uncategorised', categorySlug: slugify(cat?.category ?? 'Uncategorised'), main: cat?.main ?? 'Other', sub: cat?.sub ?? 'Uncategorised', schemeType: cat?.schemeType ?? 'Open Ended',
     });
   }
   return { rows, skipped };

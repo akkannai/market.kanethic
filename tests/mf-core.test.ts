@@ -99,3 +99,11 @@ test('admin auth: hash, plain env password, session tamper/expiry', () => {
   assert.equal(verifySession(t, 2000), 'alpesh'); assert.equal(verifySession(t, 1000 + 9 * 3600_000), null);
   assert.equal(verifySession(t.slice(0, -2) + 'aa', 2000), null); assert.equal(verifySession(undefined), null);
 });
+
+test('AMFI parser tolerates other date formats and missing category header', () => {
+  assert.equal(amfiDate('17/10/2025'), '2025-10-17'); assert.equal(amfiDate('17-10-2025'), '2025-10-17'); assert.equal(amfiDate('2025-10-17'), '2025-10-17');
+  assert.equal(amfiDate('17-OCT-2025'), '2025-10-17'); assert.equal(amfiDate('17 October 2025'), '2025-10-17'); assert.equal(amfiDate('31-02-2025'), null);
+  const { rows } = parseNavAllFull('100001;INF000A01011;-;Alpha Fund - Regular Plan - Growth;12.5;17-10-2025\n');
+  assert.equal(rows.length, 1); assert.equal(rows[0].category, 'Uncategorised'); assert.equal(rows[0].date, '2025-10-17');
+  assert.equal(parseNavAllFull('<html><body>Access Denied</body></html>').rows.length, 0);
+});
