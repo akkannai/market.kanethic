@@ -65,7 +65,7 @@ export function AdminPage() {
       {d && (<>
         <DataBar status={d.status} />
         <div className="kpis admin-kpis">
-          <div className="kpi"><span>Schemes in DB / with latest NAV / NAV rows</span><strong className="num">{d.counts.schemes.toLocaleString('en-IN')} / {d.counts.withNav.toLocaleString('en-IN')} / {d.counts.history.toLocaleString('en-IN')}</strong>
+          <div className="kpi"><span>Schemes in DB (active) / with latest NAV / NAV rows</span><strong className="num">{d.counts.schemes.toLocaleString('en-IN')} ({d.counts.active.toLocaleString('en-IN')}) / {d.counts.withNav.toLocaleString('en-IN')} / {d.counts.history.toLocaleString('en-IN')}</strong>
             {d.counts.missingLatest > 0 && <span className="down small block">{d.counts.missingLatest.toLocaleString('en-IN')} schemes have history but no latest row — press “Rebuild latest”.</span>}</div>
           <div className="kpi"><span>Backfill ({bf?.done}/{bf?.total} done · {bf?.na} no history · {bf?.failed} failed · {bf?.pending} pending)</span><strong className="num">{pct}%</strong></div>
           <div className="kpi"><span>Failure email → {d.config.alertTo}</span><strong className={d.config.mail ? 'up' : 'down'}>{d.config.mail ? 'SMTP configured' : 'SMTP NOT configured'}</strong></div>

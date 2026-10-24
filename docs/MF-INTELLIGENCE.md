@@ -30,6 +30,8 @@ Hostinger cron kyarek server time (UTC) vapre che. hPanel ma timezone jovo; jo U
 | every 30 min (until done) | — | backfill |
 | (manual, jarur pade tyare) | — | recompute ("Rebuild latest" in /admin) |
 
+hPanel ma dara cron mate **be alag jagya** hoy che: (a) Schedule (Minute / Hour / Day / Month / Weekday) ane (b) **Command** (fakat `curl ...`, schedule vagar). Example, nav-fetch 23:00 IST (= 17:30 UTC): Minute **30**, Hour **17**, Day/Month/Weekday **\***; Command: `curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://market.kanethic.com/api/cron/nav-fetch?slot=23:00&wait=1"`. Minute ma fakat ek value (jem 30), "0,30" nahi.
+
 ```
 30 17 * * *  curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://market.kanethic.com/api/cron/nav-fetch?slot=23:00&wait=1"
 15 18 * * *  curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://market.kanethic.com/api/cron/nav-fetch?slot=23:45&wait=1"

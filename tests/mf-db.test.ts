@@ -154,3 +154,16 @@ test('db: recompute rebuilds missing nav_latest rows from history', { skip }, as
   const [n] = await dbm.q<any>('SELECT * FROM nav_latest WHERE scheme_code=100001');
   assert.ok(n.prev_date && n.chg_pct !== null);
 });
+
+test('db: stale/closed scheme (very old last NAV) still gets nav_latest, but is inactive', { skip }, async () => {
+  await dbm.exec("INSERT INTO schemes (scheme_code, name, amc, scheme_type, main_category, sub_category, category, category_slug, plan, opt, first_seen, last_seen) VALUES (300001,'Old FMP - Regular - Growth','Beta Mutual Fund','Close Ended','Debt Scheme','Fixed Term Plan','Debt Scheme - Fixed Term Plan','debt-scheme-fixed-term-plan','Regular','Growth','2019-01-01','2025-10-20')");
+  await dbm.exec("INSERT INTO nav_history (scheme_code, nav_date, nav, source) VALUES (300001,'2019-03-01',10,'amfi'),(300001,'2019-03-04',10.1,'amfi'),(300001,'2019-03-05',10.2,'amfi')");
+  const r = await jobs.runRecompute({ trigger: 'manual', onlyMissing: true });
+  assert.equal(r.status, 'ok');
+  const [n] = await dbm.q<any>('SELECT * FROM nav_latest WHERE scheme_code=300001');
+  assert.equal(n.nav_date, '2019-03-05'); assert.equal(n.prev_date, '2019-03-04');
+  const [s] = await dbm.q<any>('SELECT active FROM schemes WHERE scheme_code=300001');
+  assert.equal(s.active, 0);
+  const [live] = await dbm.q<any>('SELECT active FROM schemes WHERE scheme_code=100001');
+  assert.equal(live.active, 1);
+});

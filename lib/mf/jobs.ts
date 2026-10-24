@@ -42,11 +42,12 @@ export async function recomputeLatest(codes: number[]) {
   if (!codes.length) return;
   for (let i = 0; i < codes.length; i += 250) {
     const part = codes.slice(i, i + 250);
-    const [{ d: maxD }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_history WHERE scheme_code IN (?)', [part]);
-    if (!maxD) continue;
-    const since = new Date(Date.parse(maxD) - (6 * 366 + 10) * DAY).toISOString().slice(0, 10); // series ni latest date thi (aaj thi nahi)
+    // Dara scheme ni potani latest date thi 6 varsh pachhal sudhi (band/junee schemes ni chhelli NAV varsho junee hoy to pan nav_latest bane)
     const rows = await q<{ scheme_code: number; nav_date: string; nav: number }>(
-      'SELECT scheme_code, nav_date, nav FROM nav_history WHERE scheme_code IN (?) AND nav_date >= ? ORDER BY scheme_code, nav_date', [part, since]);
+      `SELECT h.scheme_code, h.nav_date, h.nav FROM nav_history h
+         JOIN (SELECT scheme_code, MAX(nav_date) m FROM nav_history WHERE scheme_code IN (?) GROUP BY scheme_code) x ON x.scheme_code = h.scheme_code
+        WHERE h.scheme_code IN (?) AND h.nav_date >= DATE_SUB(x.m, INTERVAL 6 YEAR)
+        ORDER BY h.scheme_code, h.nav_date`, [part, part]);
     const by = new Map<number, NavRow[]>();
     for (const r of rows) (by.get(r.scheme_code) ?? by.set(r.scheme_code, []).get(r.scheme_code)!).push({ date: r.nav_date, nav: r.nav });
     const out: any[][] = [];
@@ -61,6 +62,13 @@ export async function recomputeLatest(codes: number[]) {
        ON DUPLICATE KEY UPDATE nav_date=VALUES(nav_date), nav=VALUES(nav), prev_date=VALUES(prev_date), prev_nav=VALUES(prev_nav), chg=VALUES(chg), chg_pct=VALUES(chg_pct),
          r1m=VALUES(r1m), r3m=VALUES(r3m), r6m=VALUES(r6m), r1y=VALUES(r1y), r3y=VALUES(r3y), r5y=VALUES(r5y)`, out, 500);
   }
+}
+
+/** Active = latest NAV global latest date thi 15 divas ni andar. Band / matured schemes lists ma na aave. */
+export async function refreshActive() {
+  const [{ d }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_latest');
+  if (!d) return;
+  await exec('UPDATE schemes s LEFT JOIN nav_latest n ON n.scheme_code = s.scheme_code SET s.active = IF(n.nav_date IS NOT NULL AND n.nav_date >= DATE_SUB(?, INTERVAL 15 DAY), 1, 0)', [d]);
 }
 
 // ------------------------------------------------------------------ category summary (Regular Growth only, same NAV date only)
@@ -170,7 +178,7 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
     await bulk('INSERT IGNORE INTO nav_review (scheme_code, nav_date, nav, prev_date, prev_nav, change_pct, created_at) VALUES ?', reviews, 500);
     await recomputeLatest(accepted);
     if (gaps.length) await exec("UPDATE backfill_state SET status='pending', attempts=0 WHERE scheme_code IN (?)", [gaps]); // gap repair
-    await exec('UPDATE schemes SET active=0 WHERE last_seen < ?', [new Date(Date.parse(today) - 30 * DAY).toISOString().slice(0, 10)]);
+    await refreshActive();
     const cats = await computeCategorySummary();
 
     const [{ d: asOf }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_latest');
@@ -202,6 +210,7 @@ export async function reviewAction(id: number, action: 'approve' | 'reject') {
   if (action === 'approve') {
     await exec("INSERT IGNORE INTO nav_history (scheme_code, nav_date, nav, source) VALUES (?,?,?, 'manual')", [r.scheme_code, r.nav_date, r.nav]);
     await recomputeLatest([r.scheme_code]);
+    await refreshActive();
     await computeCategorySummary();
   }
   await exec('UPDATE nav_review SET status=?, reviewed_at=? WHERE id=?', [action === 'approve' ? 'approved' : 'rejected', utcNow(), id]);
@@ -264,7 +273,7 @@ export async function runBackfill(o: { trigger?: 'cron' | 'manual'; maxMs?: numb
       }));
       await recomputeLatest(touched);
     }
-    if (done) await computeCategorySummary();
+    if (done) { await refreshActive(); await computeCategorySummary(); }
     const [left] = await q<{ n: number }>("SELECT COUNT(*) n FROM backfill_state WHERE status='pending' OR (status='failed' AND attempts<4)");
     const res: JobResult = done + failed + na === 0
       ? { status: 'nochange', message: 'Nothing left to backfill', stats: { remaining: left.n } }
@@ -296,6 +305,7 @@ export async function runRecompute(o: { trigger?: 'cron' | 'manual'; onlyMissing
         ? 'SELECT DISTINCT h.scheme_code FROM nav_history h LEFT JOIN nav_latest n ON n.scheme_code=h.scheme_code WHERE n.scheme_code IS NULL'
         : 'SELECT DISTINCT scheme_code FROM nav_history')).map((r) => r.scheme_code);
     await recomputeLatest(codes);
+    await refreshActive();
     const cats = await computeCategorySummary();
     const [{ d: asOf }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_latest');
     const [c] = await q<{ n: number }>('SELECT COUNT(*) n FROM nav_latest');
