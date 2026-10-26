@@ -167,3 +167,13 @@ test('db: stale/closed scheme (very old last NAV) still gets nav_latest, but is 
   const [live] = await dbm.q<any>('SELECT active FROM schemes WHERE scheme_code=100001');
   assert.equal(live.active, 1);
 });
+
+test('db: admin overview reports cron health (last cron run, rejected calls, expected date)', { skip }, async () => {
+  const qs = await import('../lib/mf/queries.ts');
+  await dbm.exec("DELETE FROM job_runs");
+  let o: any = await qs.adminOverview();
+  assert.equal(o.cron.lastNavFetch, null); assert.equal(o.cron.rejected24h, 0); assert.match(o.cron.expectedNavDate, /^\d{4}-\d{2}-\d{2}$/);
+  await dbm.exec("INSERT INTO job_runs (job, trigger_by, started_at, finished_at, status, message) VALUES ('nav-fetch','cron',UTC_TIMESTAMP(),UTC_TIMESTAMP(),'ok','x'), ('cron-auth','cron',UTC_TIMESTAMP(),UTC_TIMESTAMP(),'failed','bad secret')");
+  o = await qs.adminOverview();
+  assert.ok(o.cron.lastNavFetch); assert.equal(o.cron.rejected24h, 1);
+});

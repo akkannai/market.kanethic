@@ -1,5 +1,5 @@
 import { q } from './db.ts';
-import { isStale } from './calc.ts';
+import { expectedNavDate, isStale } from './calc.ts';
 import { downsample } from '../mfmath.ts';
 
 export type SchemeRow = {
@@ -155,5 +155,11 @@ export async function adminOverview() {
   const failedBf = await q<any>("SELECT scheme_code code, attempts, last_error FROM backfill_state WHERE status='failed' ORDER BY updated_at DESC LIMIT 20");
   const [counts] = await q<{ schemes: number; active: number; withNav: number; history: number }>("SELECT (SELECT COUNT(*) FROM schemes) schemes, (SELECT COUNT(*) FROM schemes WHERE active=1) active, (SELECT COUNT(*) FROM nav_latest) withNav, (SELECT COUNT(*) FROM nav_history) history");
   const [missing] = await q<{ n: number }>('SELECT COUNT(DISTINCT s.scheme_code) n FROM schemes s JOIN nav_history h ON h.scheme_code=s.scheme_code LEFT JOIN nav_latest n ON n.scheme_code=s.scheme_code WHERE n.scheme_code IS NULL');
-  return { counts: { ...counts, missingLatest: missing?.n ?? 0 }, runs: runs.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), lastByJob: lastByJob.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), reviews: reviews.map((r: any) => ({ ...r, created_at: iso(r.created_at) })), failedBackfill: failedBf, status: await status() };
+  const [cr] = await q<{ lastCron: string | null; lastAny: string | null; rejected: number; lastRejected: string | null }>(
+    `SELECT (SELECT MAX(started_at) FROM job_runs WHERE job='nav-fetch' AND trigger_by='cron') lastCron,
+            (SELECT MAX(started_at) FROM job_runs WHERE trigger_by='cron' AND job<>'cron-auth') lastAny,
+            (SELECT COUNT(*) FROM job_runs WHERE job='cron-auth' AND started_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 24 HOUR)) rejected,
+            (SELECT MAX(started_at) FROM job_runs WHERE job='cron-auth') lastRejected`);
+  return { cron: { lastNavFetch: iso(cr?.lastCron ?? null), lastAny: iso(cr?.lastAny ?? null), rejected24h: Number(cr?.rejected ?? 0), lastRejected: iso(cr?.lastRejected ?? null), expectedNavDate: expectedNavDate() },
+    counts: { ...counts, missingLatest: missing?.n ?? 0 }, runs: runs.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), lastByJob: lastByJob.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), reviews: reviews.map((r: any) => ({ ...r, created_at: iso(r.created_at) })), failedBackfill: failedBf, status: await status() };
 }

@@ -5,6 +5,7 @@ import { PageHead } from './sections';
 import { DataBar, dateText, istStamp, nfx, type MfStatus } from './mf-ui';
 
 type Overview = {
+  cron: { lastNavFetch: string | null; lastAny: string | null; rejected24h: number; lastRejected: string | null; expectedNavDate: string };
   counts: { schemes: number; active: number; withNav: number; history: number; missingLatest: number };
   status: MfStatus; config: { mail: boolean; alertTo: string; cronSecret: boolean; tz: string };
   lastByJob: { job: string; status: string; started_at: string; finished_at: string | null; message: string }[];
@@ -64,6 +65,15 @@ export function AdminPage() {
       {msg && <p className="note">{msg}</p>}
       {d && (<>
         <DataBar status={d.status} />
+        {(() => {
+          const ageH = d.cron.lastNavFetch ? (Date.now() - Date.parse(d.cron.lastNavFetch)) / 3600_000 : Infinity;
+          const behind = d.status.dataAsOf !== null && d.status.dataAsOf < d.cron.expectedNavDate;
+          return (<>
+            {d.cron.rejected24h > 0 && <p className="note down">⚠ {d.cron.rejected24h} cron call(s) were REJECTED in the last 24h (last: {istStamp(d.cron.lastRejected)}). The secret in the Hostinger cron command does not match CRON_SECRET in the app environment (or the Authorization header is missing). Fix the cron command or the env value — they must be identical, then redeploy.</p>}
+            {ageH > 26 && d.cron.rejected24h === 0 && <p className="note down">⚠ No cron-triggered nav-fetch has reached the app in the last 26 hours (last: {istStamp(d.cron.lastNavFetch)}). Check hPanel → Cron Jobs: Command must start with <code>curl</code> (not the schedule), Minute must be a single value, URL must be https://market.kanethic.com/api/cron/nav-fetch?...</p>}
+            {behind && <p className="note">ℹ Database has NAV as of {dateText(d.status.dataAsOf)}; expected by now: {dateText(d.cron.expectedNavDate)}. Press <b>nav-fetch → Run now</b> to check AMFI directly. If AMFI has not published yet, this is normal until the night run.</p>}
+          </>);
+        })()}
         <div className="kpis admin-kpis">
           <div className="kpi"><span>Schemes in DB (active) / with latest NAV / NAV rows</span><strong className="num">{d.counts.schemes.toLocaleString('en-IN')} ({d.counts.active.toLocaleString('en-IN')}) / {d.counts.withNav.toLocaleString('en-IN')} / {d.counts.history.toLocaleString('en-IN')}</strong>
             {d.counts.missingLatest > 0 && <span className="down small block">{d.counts.missingLatest.toLocaleString('en-IN')} schemes have history but no latest row — press “Rebuild latest”.</span>}</div>
