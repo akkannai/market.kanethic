@@ -130,9 +130,12 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
     const now = o.now ?? new Date();
     const expected = expectedNavDate(now);
     const [{ d: dbMax }] = await q<{ d: string | null }>('SELECT MAX(nav_date) d FROM nav_latest');
-    if (slot && slot !== '23:00' && dbMax && dbMax >= expected) {
+    // AMFI AMC-wise thodu thodu publish kare chhe: retry tyaare j skip karvo jyaare active schemes na 97%+ ma expected date aavi gai hoy
+    const [cov] = await q<{ n: number; have: number }>('SELECT COUNT(*) n, COALESCE(SUM(n.nav_date >= ?), 0) have FROM schemes s JOIN nav_latest n ON n.scheme_code=s.scheme_code WHERE s.active=1', [expected]);
+    const coverage = cov && cov.n ? cov.have / cov.n : 0;
+    if (slot && slot !== '23:00' && dbMax && dbMax >= expected && coverage >= 0.97) {
       await markStatus({ success: true });
-      const res: JobResult = { status: 'skipped', message: `Already have NAV for ${dbMax} (expected ${expected})` };
+      const res: JobResult = { status: 'skipped', message: `Already have NAV for ${expected} for ${(coverage * 100).toFixed(1)}% of active schemes` };
       await finishRun(runId, res);
       return res;
     }

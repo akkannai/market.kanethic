@@ -177,3 +177,18 @@ test('db: admin overview reports cron health (last cron run, rejected calls, exp
   o = await qs.adminOverview();
   assert.ok(o.cron.lastNavFetch); assert.equal(o.cron.rejected24h, 1);
 });
+
+test('db: retry slot is NOT skipped while AMFI has published only part of the day (coverage < 97%)', { skip }, async () => {
+  for (const t of ['schemes', 'nav_history', 'nav_latest', 'category_summary', 'nav_review', 'backfill_state', 'job_runs']) await dbm.exec(`DELETE FROM ${t}`);
+  const night = new Date('2025-10-20T18:30:00Z'); // Mon 23:30 IST -> expected 2025-10-20
+  const all = (d: string, n: Record<number, number>) => file(d, n);
+  await jobs.runNavFetch({ trigger: 'cron', slot: '23:00', now: night, text: all('17-Oct-2025', { 100001: 100, 100002: 50, 100003: 120, 100004: 10, 200001: 1000 }) });
+  // Monday: only one AMC has published so far (others still show Friday)
+  const partial = file('20-Oct-2025', { 100001: 101, 100002: 50, 100003: 120, 100004: 10, 200001: 1000 }).replace(/100002;[^\n]*20-Oct-2025/, (m) => m.replace('20-Oct-2025', '17-Oct-2025')).replace(/100003;[^\n]*20-Oct-2025/, (m) => m.replace('20-Oct-2025', '17-Oct-2025')).replace(/100004;[^\n]*20-Oct-2025/, (m) => m.replace('20-Oct-2025', '17-Oct-2025')).replace(/200001;[^\n]*20-Oct-2025/, (m) => m.replace('20-Oct-2025', '17-Oct-2025'));
+  const r1 = await jobs.runNavFetch({ trigger: 'cron', slot: '23:00', now: night, text: partial });
+  assert.equal(r1.status, 'ok'); assert.equal(r1.stats!.newNavs, 1);
+  const r2 = await jobs.runNavFetch({ trigger: 'cron', slot: '23:45', now: night, text: file('20-Oct-2025', { 100001: 101, 100002: 50.5, 100003: 121, 100004: 10.2, 200001: 1000.1 }) });
+  assert.equal(r2.status, 'ok'); assert.equal(r2.stats!.newNavs, 4); // retry ran and loaded the rest
+  const r3 = await jobs.runNavFetch({ trigger: 'cron', slot: '07:00', now: night, text: 'x' }); // ab 100% -> skip (file ni jarur nathi)
+  assert.equal(r3.status, 'skipped');
+});
