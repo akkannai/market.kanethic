@@ -356,3 +356,18 @@ th.sortable.r button { text-align: right; } th.sortable button:hover { color: va
   .with-cb th:first-child, .with-cb td:first-child { padding-left: 10px; width: 30px; }
 }
 @media (max-width: 640px) { .with-cb td, .with-cb th { padding-left: 3px; padding-right: 3px; } .with-cb td:last-child { padding-right: 10px; } }
+
+.risk-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; padding: 14px 20px 8px; }
+.risk-kpis .kpi strong { font-size: 18px; } .risk-kpis .kpi em { font-style: normal; font-size: 11.5px; color: var(--muted); font-weight: 400; }
+details.how { padding: 8px 20px 16px; color: var(--muted); font-size: 13px; } details.how summary { cursor: pointer; color: var(--brand-ink); font-weight: 600; } details.how ul { margin: 8px 0 0 18px; list-style: disc; } details.how li { margin-bottom: 4px; }
+.view-tabs { margin: 0 0 12px; display: inline-flex; }
+.rf-form { grid-template-columns: 1fr 1fr 2fr auto; }
+@media (max-width: 900px) { .rf-form { grid-template-columns: 1fr 1fr; } .rf-form .btn { grid-column: 1 / -1; justify-content: center; } }
+@media (max-width: 640px) { .risk-kpis { padding-left: 14px; padding-right: 14px; grid-template-columns: repeat(2, minmax(0, 1fr)); } details.how { padding-left: 14px; padding-right: 14px; } }
+
+.chart.compact { min-height: 0; }
+
+.kpi strong span, .kpi strong em { display: inline; }
+.kpi strong em { margin-left: 4px; }
+
+@media (max-width: 640px) { .risk-kpis .kpi { display: block; } .risk-kpis .kpi strong { white-space: nowrap; display: block; margin-top: 4px; } }

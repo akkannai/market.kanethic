@@ -1,6 +1,6 @@
 import { adminConfigured, sameOrigin, sessionFrom } from '@/lib/mf/auth';
 import { handle } from '@/lib/mf/api';
-import { runBackfill, runNavFetch, runRecompute } from '@/lib/mf/jobs';
+import { runBackfill, runMetrics, runNavFetch, runRecompute } from '@/lib/mf/jobs';
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
 
@@ -11,5 +11,6 @@ export const POST = (req: Request) => handle(async () => {
   if (job === 'nav-fetch') { runNavFetch({ trigger: 'manual' }).catch((e) => console.error(e)); return Response.json({ started: true, job }, { status: 202 }); }
   if (job === 'backfill') { runBackfill({ trigger: 'manual' }).catch((e) => console.error(e)); return Response.json({ started: true, job }, { status: 202 }); }
   if (job === 'recompute') { runRecompute({ trigger: 'manual' }).catch((e) => console.error(e)); return Response.json({ started: true, job }, { status: 202 }); }
+  if (job === 'metrics') { runMetrics({ trigger: 'manual' }).catch((e) => console.error(e)); return Response.json({ started: true, job }, { status: 202 }); }
   return Response.json({ error: 'Unknown job' }, { status: 400 });
 });

@@ -27,7 +27,7 @@ Beta Mutual Fund
 
 before(async () => {
   if (skip) return;
-  Object.assign(process.env, { DB_HOST: HOST, DB_PORT: process.env.DB_TEST_PORT ?? '3307', DB_USER: process.env.DB_TEST_USER ?? 'kmfi', DB_PASSWORD: process.env.DB_TEST_PASSWORD ?? '', DB_NAME: process.env.DB_TEST_NAME ?? 'kmfi', MIN_NAV_ROWS: '3', BACKFILL_DELAY_MS: '0' });
+  Object.assign(process.env, { DB_HOST: HOST, DB_PORT: process.env.DB_TEST_PORT ?? '3307', DB_USER: process.env.DB_TEST_USER ?? 'kmfi', DB_PASSWORD: process.env.DB_TEST_PASSWORD ?? '', DB_NAME: process.env.DB_TEST_NAME ?? 'kmfi', MIN_NAV_ROWS: '3', BACKFILL_DELAY_MS: '0', DISABLE_AUTO_METRICS: '1' });
   dbm = await import('../lib/mf/db.ts');
   jobs = await import('../lib/mf/jobs.ts');
   await dbm.ready();
@@ -191,4 +191,46 @@ test('db: retry slot is NOT skipped while AMFI has published only part of the da
   assert.equal(r2.status, 'ok'); assert.equal(r2.stats!.newNavs, 4); // retry ran and loaded the rest
   const r3 = await jobs.runNavFetch({ trigger: 'cron', slot: '07:00', now: night, text: 'x' }); // ab 100% -> skip (file ni jarur nathi)
   assert.equal(r3.status, 'skipped');
+});
+
+// ---- Phase 2A: risk metrics job, risk-free setting, peer ranking, analytics from DB
+test('db: risk-free validation + metrics job + peers + analytics (real history)', { skip }, async () => {
+  const st = await import('../lib/mf/settings.ts');
+  const qs = await import('../lib/mf/queries.ts');
+  assert.equal(typeof st.validateRiskFree('abc', '2025-10-17', ''), 'string'); assert.equal(typeof st.validateRiskFree(20, '2025-10-17', ''), 'string'); assert.equal(typeof st.validateRiskFree(6, '2999-01-01', ''), 'string'); assert.equal(typeof st.validateRiskFree(6, '17-10-2025', ''), 'string');
+  for (const t of ['schemes', 'nav_history', 'nav_latest', 'scheme_metrics', 'settings', 'job_locks', 'job_runs', 'backfill_state']) await dbm.exec(`DELETE FROM ${t}`);
+  // 6 regular-growth schemes in one category, ~5.2y of daily NAV, different drifts
+  const end = Date.UTC(2025, 9, 17);
+  const hist: any[][] = [], sch: any[][] = [], codes = [510001, 510002, 510003, 510004, 510005, 510006];
+  codes.forEach((code, k) => {
+    sch.push([code, `Peer ${k} Fund - Regular Plan - Growth`, 'Alpha Mutual Fund', 'Open Ended', 'Equity Scheme', 'Large Cap Fund', 'Equity Scheme - Large Cap Fund', 'equity-scheme-large-cap-fund', 'Regular', 'Growth', '2020-01-01', '2025-10-17', 1]);
+    let seed = code; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296 - 0.5);
+    let nav = 100;
+    for (let d = 365 * 5 + 60; d >= 0; d--) { const t = new Date(end - d * 86400_000); if (t.getUTCDay() % 6 === 0) continue; nav *= 1 + 0.0002 * (k + 1) + rnd() * 0.01; hist.push([code, t.toISOString().slice(0, 10), Number(nav.toFixed(4)), 'amfi']); }
+  });
+  await dbm.bulk('INSERT INTO schemes (scheme_code, name, amc, scheme_type, main_category, sub_category, category, category_slug, plan, opt, first_seen, last_seen, active) VALUES ?', sch);
+  await dbm.bulk('INSERT INTO nav_history (scheme_code, nav_date, nav, source) VALUES ?', hist);
+  await jobs.runRecompute({ trigger: 'manual' });
+  // no risk-free yet -> Sharpe/Sortino null but volatility present
+  let r = await jobs.runMetrics({ trigger: 'manual' });
+  assert.equal(r.status, 'ok'); assert.match(r.message, /NOT SET/);
+  let [m] = await dbm.q<any>('SELECT * FROM scheme_metrics WHERE scheme_code=510003');
+  assert.ok(m.vol_3y > 3 && m.vol_3y < 30, String(m.vol_3y)); // uniform ±0.5%/day -> ~4.6% annual assert.equal(m.sharpe_3y, null); assert.ok(m.mdd_3y < 0); assert.ok(m.sip3y !== null);
+  await st.setRiskFree({ pct: 6.2, asOf: '2025-10-15', note: 'x' });
+  assert.equal((await st.getRiskFree()).pct, 6.2);
+  r = await jobs.runMetrics({ trigger: 'manual' });
+  [m] = await dbm.q<any>('SELECT * FROM scheme_metrics WHERE scheme_code=510003');
+  assert.ok(m.sharpe_3y !== null && m.sortino_3y !== null); assert.equal(Number(m.rf_pct), 6.2);
+  // peers: strongest drift (510006) should rank 1st on 3Y return, weakest (510001) last
+  const best = await qs.peerCompare(510006), worst = await qs.peerCompare(510001);
+  assert.equal(best!.group.schemes, 6); assert.equal(best!.r3y.rank, 1); assert.equal(best!.r3y.quartile, 1); assert.equal(worst!.r3y.rank, 6); assert.equal(worst!.r3y.quartile, 4);
+  assert.ok(best!.r3y.avg !== null && best!.r3y.median !== null);
+  // full analytics from DB history incl. rolling series, calendar years, lumpsum
+  const a = await qs.schemeAnalytics(510003, { series: true });
+  assert.ok(a.analytics!.rolling['1y'] && a.analytics!.calendar.length >= 5 && a.analytics!.rollingSeries1y.length > 50);
+  assert.deepEqual(a.lumpsum.map((l) => l.years), [1, 3, 5]); assert.ok(a.lumpsum.every((l) => l.value > 0));
+  // list with metrics joins correctly
+  const list = await qs.listWithMetrics({ cat: 'equity-scheme-large-cap-fund', plan: 'Regular', opt: 'Growth' });
+  assert.equal(list.length, 6); assert.ok(list.every((x) => x.sharpe3y !== null));
+  assert.equal(await qs.peerCompare(999999), null);
 });

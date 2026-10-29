@@ -87,6 +87,16 @@ const SCHEMA = [
     last_error VARCHAR(300) NULL, history_from DATE NULL, rows_loaded INT NOT NULL DEFAULT 0,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, KEY idx_pick (status, priority, scheme_code)
   ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS settings (skey VARCHAR(60) NOT NULL PRIMARY KEY, svalue TEXT NULL, updated_at DATETIME NOT NULL) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
+  `CREATE TABLE IF NOT EXISTS scheme_metrics (
+    scheme_code INT UNSIGNED NOT NULL PRIMARY KEY, nav_date DATE NOT NULL, rf_pct DECIMAL(6,3) NULL, history_from DATE NULL,
+    vol_1y DECIMAL(10,4) NULL, vol_3y DECIMAL(10,4) NULL, vol_5y DECIMAL(10,4) NULL,
+    sharpe_1y DECIMAL(10,4) NULL, sharpe_3y DECIMAL(10,4) NULL, sharpe_5y DECIMAL(10,4) NULL, sortino_3y DECIMAL(10,4) NULL,
+    mdd_3y DECIMAL(10,4) NULL, mdd_all DECIMAL(10,4) NULL, cur_dd DECIMAL(10,4) NULL, calmar_3y DECIMAL(10,4) NULL,
+    roll1y_med DECIMAL(10,4) NULL, roll1y_pos DECIMAL(10,4) NULL, roll3y_med DECIMAL(10,4) NULL, roll3y_pos DECIMAL(10,4) NULL,
+    sip3y DECIMAL(10,4) NULL, sip5y DECIMAL(10,4) NULL, computed_at DATETIME NOT NULL,
+    KEY idx_sharpe (sharpe_3y), KEY idx_vol (vol_3y)
+  ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`,
 ];
 
 let migrating: Promise<void> | undefined;

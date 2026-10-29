@@ -7,7 +7,10 @@ import { useT } from './lang';
 import { Empty, Panel, Skel } from './ui';
 import { PageHead } from './sections';
 import { CtaBand } from './cta';
-import { Amt, DataBar, DbError, IdcwNote, NoteBox, Pct, dateText, nfx, useJson, useUrlState, type MfStatus, type Row } from './mf-ui';
+import { SchemeAnalytics } from './mf-analytics';
+import { RiskFreeNote } from './mf-analytics';
+import type { Analytics } from '@/lib/mf/analytics';
+import { Num, Ratio, Amt, DataBar, DbError, IdcwNote, NoteBox, Pct, dateText, nfx, useJson, useUrlState, type MfStatus, type Row } from './mf-ui';
 
 const RANGES = ['1m', '6m', '1y', '3y', '5y', 'max'] as const;
 const COLORS = ['#0071BB', '#FAAF3B', '#2E9E6B', '#8E5BD6', '#D1304C'];
@@ -72,8 +75,8 @@ export function SchemePage({ code }: { code: string }) {
             {first && <p className="chart-note muted small">{t('NAV history from')} {tipDate(first[0])} · {t('Source')}: AMFI / mfapi.in</p>}
           </Panel>
           <Panel title="Returns" sub={t('1M / 3M / 6M / 1Y are absolute; 3Y / 5Y are CAGR. Shown only where NAV history exists.')}><ReturnsTable rows={[s]} /></Panel>
+          <SchemeAnalytics code={code} />
           {s.opt === 'IDCW' && <IdcwNote />}
-          <NoteBox>{t('Returns are calculated from NAV history; they ignore taxes, exit load and any IDCW payouts. Past performance may or may not be sustained in the future. This is information, not a recommendation.')}</NoteBox>
           {calcRate !== null && calcRate > 0 && <NoteBox><Link href={`/calculators?r=${calcRate.toFixed(1)}`} className="more">{t('Open the SIP calculator with this fund’s past {r}% return', { r: calcRate.toFixed(1) })}</Link> — {t('illustration only; future returns will differ.')}</NoteBox>}
         </>
       )}
@@ -87,7 +90,7 @@ export function ComparePage() {
   const t = useT();
   const [f, set, ready] = useUrlState({ codes: '', range: '3y' });
   const codes = f.codes.split(',').filter((c) => /^\d{3,8}$/.test(c)).slice(0, 5);
-  const { data, error, loading } = useJson<{ schemes: Row[]; rows: Record<string, number | null>[]; startDate: string | null; status: MfStatus }>(ready.current ? `/api/mf/compare?codes=${codes.join(',')}&range=${f.range}` : null);
+  const { data, error, loading } = useJson<{ schemes: Row[]; rows: Record<string, number | null>[]; startDate: string | null; analytics?: Record<string, Analytics | null>; riskFree?: { pct: number | null; asOf: string | null; note: string }; status: MfStatus }>(ready.current ? `/api/mf/compare?codes=${codes.join(',')}&range=${f.range}` : null);
   const [text, setText] = useState('');
   const [hits, setHits] = useState<Row[]>([]);
   useEffect(() => {
@@ -113,6 +116,14 @@ export function ComparePage() {
           </Panel>
           {schemes.length > 0 && (<>
             <Panel title="Returns"><ReturnsTable rows={schemes} /></Panel>
+            <Panel title="Risk & ratios" sub={t('Calculated from daily NAV history. Blank = not enough history.')} action={data?.riskFree ? <RiskFreeNote rf={data.riskFree} /> : undefined}>
+              <div className="table-wrap"><table className="tbl"><thead><tr><th>{t('Scheme')}</th><th className="r">{t('Std dev 3Y %')}</th><th className="r">Sharpe 3Y</th><th className="r">Sortino 3Y</th><th className="r">{t('Max DD 3Y %')}</th><th className="r hide-sm">Calmar 3Y</th><th className="r hide-sm">{t('Rolling 1Y median %')}</th><th className="r hide-sm">{t('Rolling 1Y positive %')}</th><th className="r hide-sm">SIP XIRR 3Y %</th><th className="r hide-sm">SIP XIRR 5Y %</th></tr></thead>
+                <tbody>{schemes.map((sc, i) => { const a = data?.analytics?.[String(sc.code)]; const w = a?.windows['3y']; return (
+                  <tr key={sc.code}><td><span className="dot-key" style={{ background: COLORS[i % 5] }} /><Link href={`/fund/${sc.code}`} className="name inline">{sc.name}</Link></td>
+                    <td className="r"><Num v={w?.vol} /></td><td className="r"><Ratio v={w?.sharpe} /></td><td className="r"><Ratio v={w?.sortino} /></td><td className="r"><Pct v={w?.mdd?.pct} /></td>
+                    <td className="r hide-sm"><Ratio v={a?.calmar3y} /></td><td className="r hide-sm"><Pct v={a?.rolling['1y']?.median} /></td><td className="r hide-sm"><Num v={a?.rolling['1y']?.posPct} dp={0} /></td>
+                    <td className="r hide-sm"><Pct v={a?.sip['3y']?.xirr} /></td><td className="r hide-sm"><Pct v={a?.sip['5y']?.xirr} /></td></tr>); })}</tbody></table></div>
+            </Panel>
             <Panel title="Growth of 100" action={<div className="seg">{(['1y', '3y', '5y', 'max'] as const).map((r) => <button key={r} className={f.range === r ? 'on' : ''} onClick={() => set({ range: r })}>{r === 'max' ? t('Max') : r.toUpperCase()}</button>)}</div>}>
               <div className="chart">
                 {loading && !data?.rows.length ? <Skel h={320} /> : !data?.rows.length ? <Empty>{t('Not enough NAV history to compare.')}</Empty> : (

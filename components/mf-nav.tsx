@@ -6,7 +6,7 @@ import { useT } from './lang';
 import { Empty, Panel, Skel } from './ui';
 import { PageHead } from './sections';
 import { CtaBand } from './cta';
-import { Amt, DataBar, DbError, IdcwNote, NoteBox, Pct, SchemeCell, SortTh, dateText, nfx, useJson, useUrlState, type MfStatus, type Row } from './mf-ui';
+import { Amt, Num, Ratio, DataBar, DbError, IdcwNote, NoteBox, Pct, SchemeCell, SortTh, dateText, nfx, useJson, useUrlState, type MfStatus, type Row } from './mf-ui';
 
 // ------------------------------------------------------------------ NAV Today
 type Filters = { options: { amcs: string[]; mains: string[]; categories: { slug: string; category: string; main: string; sub: string; n: number }[] } };
@@ -142,7 +142,7 @@ export function CategoriesPage() {
 // ------------------------------------------------------------------ Category detail
 export function CategoryDetailPage({ slug }: { slug: string }) {
   const t = useT();
-  const [f, set] = useUrlState({ plan: 'Regular', opt: 'Growth', sort: 'name', dir: 'asc' });
+  const [f, set] = useUrlState({ plan: 'Regular', opt: 'Growth', sort: 'name', dir: 'asc', view: 'returns' });
   const url = `/api/mf/categories/${slug}?plan=${f.plan}&opt=${f.opt}`;
   const { data, error } = useJson<{ summary: Cat & { avg1d: number | null }; rows: Row[]; status: MfStatus }>(url);
   const rows = useMemo(() => {
@@ -175,18 +175,28 @@ export function CategoryDetailPage({ slug }: { slug: string }) {
             <div className="kpi"><span>{t('Median 1D %')}</span><strong><Pct v={data.summary.median1d} /></strong></div>
             <div className="kpi"><span>{t('Gainers / Losers')}</span><strong className="num"><span className="up">{data.summary.gainers}</span> / <span className="down">{data.summary.losers}</span></strong></div>
           </div>
+          <div className="seg view-tabs" role="tablist">{[['returns', t('Returns')], ['risk', t('Risk & ratios')]].map(([v, l]) => <button key={v} role="tab" aria-selected={f.view === v} className={f.view === v ? 'on' : ''} onClick={() => set({ view: v, sort: 'name', dir: 'asc' })}>{l}</button>)}</div>
           <Panel title="" className="cat-table">
-            <div className="table-wrap"><table className="tbl mf-tbl">
-              <thead><tr>{th(t('Scheme'), 'name', '')}{th('NAV (₹)', 'nav')}{th('1D %', 'chgPct')}{th('1M %', 'r1m', 'r hide-sm')}{th('3M %', 'r3m', 'r hide-sm')}{th('6M %', 'r6m', 'r hide-sm')}{th('1Y %', 'r1y')}{th('3Y % CAGR', 'r3y', 'r hide-sm')}{th('5Y % CAGR', 'r5y', 'r hide-sm')}</tr></thead>
-              <tbody>{rows.map((r) => (
-                <tr key={r.code}><SchemeCell r={r} />
-                  <td className="r"><strong className="num">{r.nav === null ? '—' : nfx(r.nav, 4)}</strong><span className="sub r">{dateText(r.navDate)}</span></td>
-                  <td className="r"><Pct v={r.chgPct} /></td><td className="r hide-sm"><Pct v={r.r1m} /></td><td className="r hide-sm"><Pct v={r.r3m} /></td><td className="r hide-sm"><Pct v={r.r6m} /></td>
-                  <td className="r"><Pct v={r.r1y} /></td><td className="r hide-sm"><Pct v={r.r3y} /></td><td className="r hide-sm"><Pct v={r.r5y} /></td></tr>))}</tbody>
-            </table></div>
+            <div className="table-wrap">{f.view === 'risk' ? (
+              <table className="tbl mf-tbl">
+                <thead><tr>{th(t('Scheme'), 'name', '')}{th(t('Std dev 3Y %'), 'vol3y')}{th('Sharpe 3Y', 'sharpe3y')}{th('Sortino 3Y', 'sortino3y', 'r hide-sm')}{th(t('Max DD 3Y %'), 'mdd3y')}{th(t('Current DD %'), 'curDd', 'r hide-sm')}{th('Calmar 3Y', 'calmar3y', 'r hide-sm')}{th(t('Rolling 1Y median %'), 'roll1yMed', 'r hide-sm')}{th('SIP XIRR 3Y %', 'sip3y', 'r hide-sm')}</tr></thead>
+                <tbody>{rows.map((r) => (
+                  <tr key={r.code}><SchemeCell r={r} />
+                    <td className="r"><Num v={r.vol3y} dp={2} /></td><td className="r"><Ratio v={r.sharpe3y} /></td><td className="r hide-sm"><Ratio v={r.sortino3y} /></td>
+                    <td className="r"><Pct v={r.mdd3y} /></td><td className="r hide-sm"><Pct v={r.curDd} /></td><td className="r hide-sm"><Ratio v={r.calmar3y} /></td><td className="r hide-sm"><Pct v={r.roll1yMed} /></td><td className="r hide-sm"><Pct v={r.sip3y} /></td></tr>))}</tbody>
+              </table>) : (
+              <table className="tbl mf-tbl">
+                <thead><tr>{th(t('Scheme'), 'name', '')}{th('NAV (₹)', 'nav')}{th('1D %', 'chgPct')}{th('1M %', 'r1m', 'r hide-sm')}{th('3M %', 'r3m', 'r hide-sm')}{th('6M %', 'r6m', 'r hide-sm')}{th('1Y %', 'r1y')}{th('3Y % CAGR', 'r3y', 'r hide-sm')}{th('5Y % CAGR', 'r5y', 'r hide-sm')}</tr></thead>
+                <tbody>{rows.map((r) => (
+                  <tr key={r.code}><SchemeCell r={r} />
+                    <td className="r"><strong className="num">{r.nav === null ? '—' : nfx(r.nav, 4)}</strong><span className="sub r">{dateText(r.navDate)}</span></td>
+                    <td className="r"><Pct v={r.chgPct} /></td><td className="r hide-sm"><Pct v={r.r1m} /></td><td className="r hide-sm"><Pct v={r.r3m} /></td><td className="r hide-sm"><Pct v={r.r6m} /></td>
+                    <td className="r"><Pct v={r.r1y} /></td><td className="r hide-sm"><Pct v={r.r3y} /></td><td className="r hide-sm"><Pct v={r.r5y} /></td></tr>))}</tbody>
+              </table>)}</div>
             {!rows.length && <Empty>{t('No schemes for this selection.')}</Empty>}
           </Panel>
           {(f.opt === 'IDCW') && <IdcwNote />}
+          {f.view === 'risk' && <NoteBox>{t('Risk ratios are calculated from daily NAV history with the 91-day T-bill as risk-free rate (set by Kanethic admin). Std dev, Sharpe, Sortino and Max drawdown (DD) use the last 3 years; empty where history is shorter. Sorting is by the clicked column; a high Sharpe is not a recommendation.')}</NoteBox>}
           <NoteBox>{t('Returns shown only where NAV history exists (1M/3M/6M/1Y absolute, 3Y/5Y CAGR). Past performance may or may not be sustained in the future.')}</NoteBox>
         </>
       )}

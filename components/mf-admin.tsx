@@ -6,6 +6,7 @@ import { DataBar, dateText, istStamp, nfx, type MfStatus } from './mf-ui';
 
 type Overview = {
   cron: { lastNavFetch: string | null; lastAny: string | null; rejected24h: number; lastRejected: string | null; expectedNavDate: string };
+  riskFree: { pct: number | null; asOf: string | null; note: string }; metricsCount: number;
   counts: { schemes: number; active: number; withNav: number; history: number; missingLatest: number };
   status: MfStatus; config: { mail: boolean; alertTo: string; cronSecret: boolean; tz: string };
   lastByJob: { job: string; status: string; started_at: string; finished_at: string | null; message: string }[];
@@ -22,6 +23,7 @@ export function AdminPage() {
   const [err, setErr] = useState('');
   const [msg, setMsg] = useState('');
   const [form, setForm] = useState({ user: '', password: '' });
+  const [rf, setRf] = useState({ pct: '', asOf: new Date().toISOString().slice(0, 10), note: '91-day Treasury bill (RBI auction cut-off yield)' });
 
   const load = useCallback(async () => {
     const r = await fetch('/api/admin/status', { cache: 'no-store' });
@@ -83,11 +85,21 @@ export function AdminPage() {
         {!d.config.cronSecret && <p className="note down">CRON_SECRET is missing or shorter than 16 characters — cron URLs will be rejected.</p>}
         <Panel title="Jobs" sub={`Server timezone: ${d.config.tz}. All schedules are defined in IST (see README for cron lines).`}>
           <div className="table-wrap"><table className="tbl"><thead><tr><th>Job</th><th>Last run</th><th>Status</th><th>Message</th><th /></tr></thead><tbody>
-            {['nav-fetch', 'backfill', 'recompute'].map((job) => { const l = d.lastByJob.find((x) => x.job === job); return (
+            {['nav-fetch', 'backfill', 'recompute', 'metrics'].map((job) => { const l = d.lastByJob.find((x) => x.job === job); return (
               <tr key={job}><td><b>{job}</b></td><td>{istStamp(l?.started_at ?? null)}</td><td><span className={`badge ${l?.status === 'failed' ? 'stale' : l?.status === 'ok' ? 'live' : 'closed'}`}>{l?.status ?? 'never'}</span></td><td className="muted small">{l?.message ?? '—'}</td>
-                <td className="r"><button className="btn" onClick={() => act('/api/admin/run', { job }, `${job} started — refresh in a few seconds`)}>{job === 'recompute' ? 'Rebuild latest' : 'Run now'}</button></td></tr>); })}
+                <td className="r"><button className="btn" onClick={() => act('/api/admin/run', { job }, `${job} started — refresh in a few seconds`)}>{job === 'recompute' ? 'Rebuild latest' : job === 'metrics' ? 'Recompute ratios' : 'Run now'}</button></td></tr>); })}
           </tbody></table></div>
           <div className="pad-x"><button className="btn" onClick={async () => { const r = await post('/api/admin/test-email', {}); setMsg(r.json.sent ? `Test email sent to ${r.json.to}` : `Email not sent: ${r.json.reason ?? r.json.error}`); }}>Send test email</button></div>
+        </Panel>
+        <Panel title="Risk-free rate (91-day T-bill)" sub={`Used for Sharpe / Sortino. ${d.metricsCount.toLocaleString('en-IN')} schemes have ratios computed.`}>
+          <div className="pad-x">{d.riskFree.pct === null ? <p className="down"><b>NOT SET</b> — Sharpe and Sortino are hidden on the website until you save a rate.</p> : <p>Current: <b>{d.riskFree.pct}%</b> as of {d.riskFree.asOf ? dateText(d.riskFree.asOf) : '—'} · {d.riskFree.note}</p>}</div>
+          <form className="alert-form rf-form" onSubmit={async (e) => { e.preventDefault(); const r = await post('/api/admin/risk-free', rf); setMsg(r.ok ? `Saved ${r.json.pct}% — ratios are being recomputed (a few minutes)` : r.json.error ?? 'Failed'); setTimeout(load, 1500); }}>
+            <label>Rate % p.a.<input inputMode="decimal" value={rf.pct} onChange={(e) => setRf({ ...rf, pct: e.target.value })} placeholder="e.g. 5.90" /></label>
+            <label>As of (date)<input type="date" value={rf.asOf} onChange={(e) => setRf({ ...rf, asOf: e.target.value })} /></label>
+            <label>Source note<input value={rf.note} onChange={(e) => setRf({ ...rf, note: e.target.value })} /></label>
+            <button className="btn primary" type="submit" disabled={!rf.pct}>Save &amp; recompute</button>
+          </form>
+          <p className="panel-foot small muted">Enter the latest 91-day T-bill cut-off yield from the RBI auction result (rbi.org.in → Press Releases → “Result of 91-Day Treasury Bill Auction”). Update it when it changes noticeably (e.g. monthly).</p>
         </Panel>
         <Panel title={`Review queue (${d.reviews.length})`} sub="NAV changes above ±20% — NOT published until approved.">
           {!d.reviews.length ? <p className="empty">Nothing waiting for review.</p> : (

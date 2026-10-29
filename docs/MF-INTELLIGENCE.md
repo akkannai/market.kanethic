@@ -71,3 +71,25 @@ Backfill: batch ma chale, resumable; badhi scheme thai jaay pachhi `nothing left
 
 Verified (offline, fixtures + real MariaDB): parsing, 1D/returns maths, weekend gap, 20% guard, stale behaviour, backfill, lock, email, admin auth, all pages/API.
 **Not verified from our build sandbox** (hosts blocked): live AMFI / mfapi responses, Hostinger MySQL host, Hostinger cron timezone, SMTP login. Pehla run par `/admin` ma Job status jovo; error aave to message dekhase.
+
+## 8. Phase 2A — ratios (all from NAV history, no new data source)
+
+**Kya dekhay che:** scheme page (Risk & ratios, Rolling returns, Calendar-year returns, Category comparison, SIP & lumpsum illustration), category page (tab **Risk & ratios**, sortable + CSV), compare page (Risk & ratios table).
+
+| Ratio | Definition |
+|---|---|
+| Std deviation | stdev(daily NAV returns) × √(periods per year); 1Y / 3Y / 5Y |
+| Sharpe | (CAGR − Rf) ÷ std deviation |
+| Sortino | (CAGR − Rf) ÷ downside deviation (target = Rf per period) |
+| Max drawdown | worst peak→trough fall in the window (+ peak / trough / recovery dates); current drawdown vs all-time-high in the 5Y history |
+| Calmar | 3Y CAGR ÷ \|3Y max drawdown\| |
+| Rolling returns | every window ending on each NAV date: 1Y absolute, 3Y CAGR → worst / median / best, % of times positive, % ≥ 10% |
+| Calendar-year / months | year-end to year-end returns (first year partial, current year YTD); best / worst month; % positive months |
+| Category comparison | rank / quartile / average / median among active schemes of the **same category + plan + option** (min 5 peers) |
+| SIP | ₹10,000 on the first NAV date of every month, valued at latest NAV → XIRR; lumpsum ₹1 lakh |
+
+**Risk-free rate = 91-day T-bill.** Real value `/admin` → *Risk-free rate* ma nakho (RBI 91-day T-bill auction cut-off yield, jem 5.90) + as-of date. Save karta j badha ratios pharithi gane (job `metrics`). Jyaan sudhi set nathi tyaan sudhi Sharpe/Sortino **dekhata nathi** (koi andajo vaparyo nathi). Rate ek current value tarike poori window ma vaprai (factsheet-style); mahine ek vaar update karo.
+
+**Job `metrics`:** nav-fetch ma navi NAV aave pachhi auto chale (background); `/admin` ma *Recompute ratios*; cron mate optional: `curl -fsS -X POST -H "Authorization: Bearer YOUR_CRON_SECRET" "https://market.kanethic.com/api/cron/metrics"`. Result `scheme_metrics` table ma (fakat active schemes). Scheme page par ratio pote j taaji history thi gane che.
+
+**Limit:** ratios mate ≥1 varsh no NAV history joie (3Y/5Y mate te mujab); backfill purun thay pachhi j badha dekhase. Beta/Alpha/Tracking error/Capture (benchmark TRI joiye), TER/AUM (AMFI) Phase 2B ma.

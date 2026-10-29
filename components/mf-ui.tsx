@@ -9,6 +9,7 @@ export type Row = {
   code: number; name: string; amc: string; category: string; categorySlug: string; main: string; sub: string; plan: string; opt: string;
   nav: number | null; navDate: string | null; prevDate: string | null; prevNav: number | null; chg: number | null; chgPct: number | null;
   r1m: number | null; r3m: number | null; r6m: number | null; r1y: number | null; r3y: number | null; r5y: number | null;
+  vol3y?: number | null; sharpe3y?: number | null; sortino3y?: number | null; mdd3y?: number | null; mddAll?: number | null; curDd?: number | null; calmar3y?: number | null; roll1yMed?: number | null; roll1yPos?: number | null; sip3y?: number | null; sip5y?: number | null;
 };
 
 export const nfx = (n: number, dp = 2) => n.toLocaleString('en-IN', { minimumFractionDigits: dp, maximumFractionDigits: dp });
@@ -21,6 +22,13 @@ export function Pct({ v, dp = 2, suffix = '%' }: { v: number | null | undefined;
   return v == null ? <span className="muted">—</span> : <span className={`${tone(v)} num`}>{sgn(v, dp)}{suffix}</span>;
 }
 export function Amt({ v, dp = 4 }: { v: number | null | undefined; dp?: number }) {
+  return v == null ? <span className="muted">—</span> : <span className={`${tone(v)} num`}>{sgn(v, dp)}</span>;
+}
+
+export function Num({ v, dp = 2, suffix = '%' }: { v: number | null | undefined; dp?: number; suffix?: string }) {
+  return v == null ? <span className="muted">—</span> : <span className="num">{nfx(v, dp)}{suffix}</span>;
+}
+export function Ratio({ v, dp = 2 }: { v: number | null | undefined; dp?: number }) {
   return v == null ? <span className="muted">—</span> : <span className={`${tone(v)} num`}>{sgn(v, dp)}</span>;
 }
 

@@ -3,6 +3,8 @@ import { parseNavAllFull, resolveOption, resolvePlan, type ParsedRow } from './c
 import { computeReturns, expectedNavDate, istDate, median, mean, oneDay, SLOTS, validateChange, pctChange, type NavRow, type Slot } from './calc.ts';
 import { parseMfapi } from '../mfmath.ts';
 import { alert } from './mail.ts';
+import { computeAnalytics } from './analytics.ts';
+import { getRiskFree } from './settings.ts';
 
 const AMFI_URLS = ['https://www.amfiindia.com/spages/NAVAll.txt', 'https://portal.amfiindia.com/spages/NAVAll.txt'];
 const HIST_YEARS = () => Number(process.env.BACKFILL_YEARS) || 5;
@@ -192,6 +194,7 @@ export async function runNavFetch(o: { slot?: Slot | null; trigger?: 'cron' | 'm
     else if (!dbMax || dbMax < expected) res = { status: SLOTS[slot as Slot] === true || trigger === 'manual' ? 'nochange' : 'waiting', message: `No newer NAV than ${dbMax ?? 'none'} (expected ${expected}). ${SLOTS[slot as Slot] ? 'Market holiday or AMFI delay.' : 'Will retry.'}`, stats };
     else res = { status: 'nochange', message: `No new NAV; database already has ${dbMax}`, stats };
     await finishRun(runId, res);
+    if (accepted.length && !process.env.DISABLE_AUTO_METRICS) runMetrics({ trigger }).catch((e) => console.error('[metrics]', e)); // fire-and-forget; lock overlap thi bachave
     if (reviews.length) await alert('review', `${reviews.length} NAV change(s) above ±20% need review`, `${reviews.length} scheme NAV(s) moved more than ±20% vs the previous NAV and were NOT published. Review them in the admin panel.`);
     return res;
   } catch (e) {
@@ -321,5 +324,54 @@ export async function runRecompute(o: { trigger?: 'cron' | 'manual'; onlyMissing
     return res;
   } finally {
     await release('recompute').catch(() => {});
+  }
+}
+
+// ------------------------------------------------------------------ risk metrics for every active scheme (nightly, after NAV load)
+export async function runMetrics(o: { trigger?: 'cron' | 'manual'; limit?: number } = {}): Promise<JobResult> {
+  const runId = await startRun('metrics', null, o.trigger ?? 'manual');
+  if (!(await acquire('metrics', 45 * 60_000))) {
+    const res: JobResult = { status: 'skipped', message: 'Metrics already running' };
+    await finishRun(runId, res);
+    return res;
+  }
+  try {
+    const rf = await getRiskFree();
+    const codes = (await q<{ scheme_code: number }>(`SELECT s.scheme_code FROM schemes s JOIN nav_latest n ON n.scheme_code=s.scheme_code WHERE s.active=1 ORDER BY s.scheme_code ${o.limit ? `LIMIT ${Number(o.limit)}` : ''}`)).map((r) => r.scheme_code);
+    let done = 0, thin = 0;
+    const now = utcNow();
+    for (let i = 0; i < codes.length; i += 150) {
+      const part = codes.slice(i, i + 150);
+      const rows = await q<{ scheme_code: number; nav_date: string; nav: number }>(
+        `SELECT h.scheme_code, h.nav_date, h.nav FROM nav_history h
+           JOIN (SELECT scheme_code, MAX(nav_date) m FROM nav_history WHERE scheme_code IN (?) GROUP BY scheme_code) x ON x.scheme_code=h.scheme_code
+          WHERE h.scheme_code IN (?) AND h.nav_date >= DATE_SUB(x.m, INTERVAL 1900 DAY) ORDER BY h.scheme_code, h.nav_date`, [part, part]);
+      const by = new Map<number, NavRow[]>();
+      for (const r of rows) (by.get(r.scheme_code) ?? by.set(r.scheme_code, []).get(r.scheme_code)!).push({ date: r.nav_date, nav: r.nav });
+      const out: any[][] = [];
+      for (const [code, series] of by) {
+        const a = computeAnalytics(series, { rfPct: rf.pct });
+        if (!a) { thin++; continue; }
+        const w = a.windows, r = a.rolling;
+        out.push([code, a.asOf, rf.pct, a.historyFrom, w['1y']?.vol ?? null, w['3y']?.vol ?? null, w['5y']?.vol ?? null, w['1y']?.sharpe ?? null, w['3y']?.sharpe ?? null, w['5y']?.sharpe ?? null,
+          w['3y']?.sortino ?? null, w['3y']?.mdd?.pct ?? null, a.all.mdd?.pct ?? null, a.all.current?.pct ?? null, a.calmar3y, r['1y']?.median ?? null, r['1y']?.posPct ?? null, r['3y']?.median ?? null, r['3y']?.posPct ?? null,
+          a.sip['3y']?.xirr ?? null, a.sip['5y']?.xirr ?? null, now]);
+        done++;
+      }
+      await bulk(
+        `INSERT INTO scheme_metrics (scheme_code, nav_date, rf_pct, history_from, vol_1y, vol_3y, vol_5y, sharpe_1y, sharpe_3y, sharpe_5y, sortino_3y, mdd_3y, mdd_all, cur_dd, calmar_3y, roll1y_med, roll1y_pos, roll3y_med, roll3y_pos, sip3y, sip5y, computed_at) VALUES ?
+         ON DUPLICATE KEY UPDATE nav_date=VALUES(nav_date), rf_pct=VALUES(rf_pct), history_from=VALUES(history_from), vol_1y=VALUES(vol_1y), vol_3y=VALUES(vol_3y), vol_5y=VALUES(vol_5y), sharpe_1y=VALUES(sharpe_1y), sharpe_3y=VALUES(sharpe_3y),
+           sharpe_5y=VALUES(sharpe_5y), sortino_3y=VALUES(sortino_3y), mdd_3y=VALUES(mdd_3y), mdd_all=VALUES(mdd_all), cur_dd=VALUES(cur_dd), calmar_3y=VALUES(calmar_3y), roll1y_med=VALUES(roll1y_med), roll1y_pos=VALUES(roll1y_pos),
+           roll3y_med=VALUES(roll3y_med), roll3y_pos=VALUES(roll3y_pos), sip3y=VALUES(sip3y), sip5y=VALUES(sip5y), computed_at=VALUES(computed_at)`, out, 300);
+    }
+    const res: JobResult = { status: 'ok', message: `Risk metrics computed for ${done} schemes (${thin} with too little history); risk-free ${rf.pct === null ? 'NOT SET (Sharpe/Sortino skipped)' : rf.pct + '%'}`, stats: { computed: done, shortHistory: thin, rf: rf.pct ?? 'not set' } };
+    await finishRun(runId, res);
+    return res;
+  } catch (e) {
+    const res: JobResult = { status: 'failed', message: e instanceof Error ? e.message : String(e) };
+    await finishRun(runId, res).catch(() => {});
+    return res;
+  } finally {
+    await release('metrics').catch(() => {});
   }
 }

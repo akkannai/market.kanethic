@@ -1,6 +1,9 @@
 import { q } from './db.ts';
 import { expectedNavDate, isStale } from './calc.ts';
 import { downsample } from '../mfmath.ts';
+import { computeAnalytics, rankIn, type Analytics } from './analytics.ts';
+import { getRiskFree } from './settings.ts';
+import type { NavRow } from './calc.ts';
 
 export type SchemeRow = {
   code: number; name: string; amc: string; category: string; categorySlug: string; main: string; sub: string; plan: string; opt: string;
@@ -79,7 +82,7 @@ export async function categoriesList() {
 export async function categoryDetail(slug: string, plan = 'Regular', opt = 'Growth') {
   const [summary] = await q<any>('SELECT category_slug slug, category, main_category main, sub_category sub, nav_date navDate, scheme_count schemeCount, avg_1d avg1d, median_1d median1d, gainers, losers, unchanged, computed_at computedAt FROM category_summary WHERE category_slug=?', [slug]);
   if (!summary) return null;
-  const { rows } = await listSchemes({ cat: slug, plan, opt, pageSize: 200, sort: 'name' });
+  const rows = await listWithMetrics({ cat: slug, plan, opt, pageSize: 500 });
   return { summary, rows };
 }
 
@@ -108,7 +111,10 @@ export async function compare(codes: number[], range: string) {
   for (const c of uniq) { const s = await schemeDetail(c); if (s && s.nav !== null) schemes.push(s); }
   const series = await Promise.all(schemes.map((s) => history(s.code, range, 2000)));
   const firsts = series.map((s) => s[0]?.[0]).filter((x): x is number => !!x);
-  if (!firsts.length) return { schemes, rows: [] as any[], startDate: null as string | null };
+  const rf = await getRiskFree();
+  const analytics: Record<number, Analytics | null> = {};
+  for (const sc of schemes) analytics[sc.code] = computeAnalytics(await loadSeries(sc.code), { rfPct: rf.pct });
+  if (!firsts.length) return { schemes, rows: [] as any[], startDate: null as string | null, analytics, riskFree: rf };
   const start = Math.max(...firsts);
   const dates = [...new Set(series.flatMap((s) => s.map((p) => p[0]).filter((t) => t >= start)))].sort((a, b) => a - b);
   const idx = series.map(() => 0);
@@ -123,7 +129,7 @@ export async function compare(codes: number[], range: string) {
     return row;
   });
   const step = Math.ceil(rows.length / 500);
-  return { schemes, rows: rows.filter((_, i) => i % step === 0 || i === rows.length - 1), startDate: new Date(start).toISOString().slice(0, 10) };
+  return { schemes, rows: rows.filter((_, i) => i % step === 0 || i === rows.length - 1), startDate: new Date(start).toISOString().slice(0, 10), analytics, riskFree: rf };
 }
 
 export async function search(qs: string, limit = 8) {
@@ -160,6 +166,56 @@ export async function adminOverview() {
             (SELECT MAX(started_at) FROM job_runs WHERE trigger_by='cron' AND job<>'cron-auth') lastAny,
             (SELECT COUNT(*) FROM job_runs WHERE job='cron-auth' AND started_at > DATE_SUB(UTC_TIMESTAMP(), INTERVAL 24 HOUR)) rejected,
             (SELECT MAX(started_at) FROM job_runs WHERE job='cron-auth') lastRejected`);
-  return { cron: { lastNavFetch: iso(cr?.lastCron ?? null), lastAny: iso(cr?.lastAny ?? null), rejected24h: Number(cr?.rejected ?? 0), lastRejected: iso(cr?.lastRejected ?? null), expectedNavDate: expectedNavDate() },
+  return { riskFree: await getRiskFree(), metricsCount: (await q<{ n: number }>('SELECT COUNT(*) n FROM scheme_metrics'))[0]?.n ?? 0, cron: { lastNavFetch: iso(cr?.lastCron ?? null), lastAny: iso(cr?.lastAny ?? null), rejected24h: Number(cr?.rejected ?? 0), lastRejected: iso(cr?.lastRejected ?? null), expectedNavDate: expectedNavDate() },
     counts: { ...counts, missingLatest: missing?.n ?? 0 }, runs: runs.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), lastByJob: lastByJob.map((r: any) => ({ ...r, started_at: iso(r.started_at), finished_at: iso(r.finished_at) })), reviews: reviews.map((r: any) => ({ ...r, created_at: iso(r.created_at) })), failedBackfill: failedBf, status: await status() };
+}
+
+export type MetricsRow = { vol3y: number | null; sharpe3y: number | null; sortino3y: number | null; mdd3y: number | null; mddAll: number | null; curDd: number | null; calmar3y: number | null; roll1yMed: number | null; roll1yPos: number | null; sip3y: number | null; sip5y: number | null };
+export type SchemeWithMetrics = SchemeRow & Partial<MetricsRow>;
+
+const MSEL = `m.vol_3y vol3y, m.sharpe_3y sharpe3y, m.sortino_3y sortino3y, m.mdd_3y mdd3y, m.mdd_all mddAll, m.cur_dd curDd, m.calmar_3y calmar3y, m.roll1y_med roll1yMed, m.roll1y_pos roll1yPos, m.sip3y sip3y, m.sip5y sip5y`;
+
+/** Category table: returns + risk ratios (same filters as listSchemes) */
+export async function listWithMetrics(f: Filters): Promise<SchemeWithMetrics[]> {
+  const w = where(f);
+  return q<SchemeWithMetrics>(`SELECT ${SELECT}, ${MSEL} ${FROM} LEFT JOIN scheme_metrics m ON m.scheme_code = s.scheme_code WHERE ${w.sql} ORDER BY s.name LIMIT ${Math.min(500, f.pageSize ?? 200)}`, w.p);
+}
+
+export async function loadSeries(code: number, days = 1900): Promise<NavRow[]> {
+  const rows = await q<{ d: string; nav: number }>('SELECT nav_date d, nav FROM nav_history WHERE scheme_code=? AND nav_date >= DATE_SUB((SELECT MAX(nav_date) FROM nav_history WHERE scheme_code=?), INTERVAL ? DAY) ORDER BY nav_date', [code, code, days]);
+  return rows.map((r) => ({ date: r.d, nav: r.nav }));
+}
+
+export async function schemeAnalytics(code: number, o: { series?: boolean } = {}): Promise<{ analytics: Analytics | null; riskFree: Awaited<ReturnType<typeof getRiskFree>>; lumpsum: { years: number; from: string; value: number }[] }> {
+  const [rf, rows] = await Promise.all([getRiskFree(), loadSeries(code)]);
+  const analytics = computeAnalytics(rows, { rfPct: rf.pct, series: o.series });
+  const lumpsum: { years: number; from: string; value: number }[] = [];
+  if (rows.length > 1) {
+    const last = rows[rows.length - 1];
+    for (const y of [1, 3, 5]) {
+      const target = new Date(Date.parse(`${last.date}T00:00:00Z`)); target.setUTCFullYear(target.getUTCFullYear() - y);
+      const t = target.getTime();
+      let b: NavRow | null = null;
+      for (const r of rows) { const rt = Date.parse(`${r.date}T00:00:00Z`); if (rt <= t) b = r; else break; }
+      if (b && t - Date.parse(`${b.date}T00:00:00Z`) <= 7 * 86400_000) lumpsum.push({ years: y, from: b.date, value: 100000 * (last.nav / b.nav) });
+    }
+  }
+  return { analytics, riskFree: rf, lumpsum };
+}
+
+/** Category peers: same category + plan + option. Rank / quartile / average / median. */
+export async function peerCompare(code: number) {
+  const [me] = await q<{ category: string; slug: string; plan: string; opt: string }>('SELECT category, category_slug slug, plan, opt FROM schemes WHERE scheme_code=?', [code]);
+  if (!me) return null;
+  const peers = await q<{ code: number; r1y: number | null; r3y: number | null; r5y: number | null; vol3y: number | null; sharpe3y: number | null; mdd3y: number | null }>(
+    `SELECT s.scheme_code code, n.r1y, n.r3y, n.r5y, m.vol_3y vol3y, m.sharpe_3y sharpe3y, m.mdd_3y mdd3y
+       FROM schemes s JOIN nav_latest n ON n.scheme_code=s.scheme_code LEFT JOIN scheme_metrics m ON m.scheme_code=s.scheme_code
+      WHERE s.active=1 AND s.category_slug=? AND s.plan=? AND s.opt=?`, [me.slug, me.plan, me.opt]);
+  const mine = peers.find((p) => p.code === code);
+  const metric = (key: 'r1y' | 'r3y' | 'r5y' | 'vol3y' | 'sharpe3y' | 'mdd3y', higher = true) => {
+    const vals = peers.map((p) => p[key]).filter((v): v is number => v !== null);
+    const m = mine?.[key] ?? null;
+    return m === null || vals.length < 5 ? { mine: m, total: vals.length, rank: null, quartile: null, avg: null, median: null } : { mine: m, ...rankIn(vals, m, higher) };
+  };
+  return { group: { category: me.category, plan: me.plan, option: me.opt, schemes: peers.length }, r1y: metric('r1y'), r3y: metric('r3y'), r5y: metric('r5y'), vol3y: metric('vol3y', false), sharpe3y: metric('sharpe3y'), mdd3y: metric('mdd3y') };
 }
